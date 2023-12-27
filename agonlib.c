@@ -1,7 +1,7 @@
 #include "agonlib.h"
 #include "agonmos.h"
 
-#define MALLOC_BASE 0x50000
+#define MALLOC_BASE 0x60000
 #define MALLOC_MAX 0xB8000
 
 static int malloc_base = MALLOC_BASE;

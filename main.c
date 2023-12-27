@@ -1,13 +1,15 @@
+#include "sintable.inc"
+
 #include "agonmos.h"
 #include "agonlib.h"
-
-#include "sintable.inc"
 
 #define WIDTH 320
 #define HEIGHT 240
 
 #define BITMAPBUFFER 1
 #define BITMAPFORMAT 1
+
+#define COMMANDBUFFER 2
 
 #define CURVECOUNT 256
 #define CURVESTEP 4
@@ -101,8 +103,73 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 }
 
 
+#define sintable ((long*)0x4C000)
+#define costable ((long*)(((char*)sintable)+SINTABLEENTRIES))
+
 #define bitmap ((char*)0x60000)
+#define bitmapCentre ((char*)(bitmap+(HEIGHT+1)*HEIGHT/2))
 #define bitmapEnd ((char*)(bitmap+HEIGHT*HEIGHT))
+
+#define scaleXTable ((char*)0x78000)
+#define scaleYTable ((int*)0x98000)
+
+#define scaleDiv 174
+void generatescaletables()
+{
+    int i, step = 0, xv = -32768 / scaleDiv, yv = xv * HEIGHT;
+    for (i = -32768; i < 32768; ++i)
+    {
+        scaleXTable[i] = xv;
+        scaleYTable[i] = yv;
+        if (++step == scaleDiv)
+        {
+            step = 0;
+            ++xv;
+            yv += HEIGHT;
+        }
+    }
+}
+
+void expandsintable()
+{
+    int i;
+    for (i = 0; i < SINTABLEENTRIES/4; ++i)
+    {
+        sintable[i] = sintable[SINTABLEENTRIES/2 - i - 1] = sintable[SINTABLEENTRIES + i] = compactsintable[i];
+        sintable[SINTABLEENTRIES/2 + i] = sintable[SINTABLEENTRIES - i - 1] = -compactsintable[i];
+    }
+}
+
+void makecommandbuffer()
+{
+    char commandBuffer[21] = {23, 27, 0x21, 0, 0, 0, 0, 0,    23, 27, 3, 0, 0, 0, 0,    23, 0, 0xA0, 0, 0, 2};
+    *(short*)(commandBuffer+3) = HEIGHT;
+    *(short*)(commandBuffer+5) = HEIGHT;
+    commandBuffer[7] = BITMAPFORMAT;
+
+    *(short*)(commandBuffer+8+3) = (WIDTH-HEIGHT)/2;
+    *(short*)(commandBuffer+8+5) = 0;
+
+    *(short*)(commandBuffer+15 + 3) = BITMAPBUFFER;
+
+    writetobuffer(COMMANDBUFFER, commandBuffer, 21);
+}
+
+void appendcallbuffertobitmap()
+{
+    bitmap[-8] = 23;
+    bitmap[-7] = 0;
+    bitmap[-6] = 0xA0;
+    *(short*)(bitmap-5) = BITMAPBUFFER;
+    bitmap[-3] = 0;
+    *(short*)(bitmap-2) = HEIGHT*HEIGHT;
+
+    bitmapEnd[0] = 23;
+    bitmapEnd[1] = 0;
+    bitmapEnd[2] = 0xA0;
+    *(short*)(bitmapEnd+3) = COMMANDBUFFER;
+    bitmapEnd[5] = 1;
+}
 
 int main(void)
 {
@@ -113,54 +180,28 @@ int main(void)
     unsigned char* ptr;
     unsigned char oldColour;
 
-    ptr = bitmap;
-    while (ptr < bitmapEnd)
-    {
-        *((int*)(ptr)) = 123;
-        ptr += 3;
-    }
+    clearbuffer(BITMAPBUFFER);
+    clearbuffer(COMMANDBUFFER);
+    selectbufferforbitmap(BITMAPBUFFER);
 
-clearbuffer(BITMAPBUFFER);
-writetobuffer(BITMAPBUFFER, bitmap, HEIGHT*HEIGHT);
-selectbufferforbitmap(BITMAPBUFFER);
-createbitmapfrombuffer(HEIGHT, HEIGHT, BITMAPFORMAT);
-drawbitmap(0, 0);
-printnum(gettime()-start); vdp_sendstring("\n\r");
+    generatescaletables();
+    expandsintable();
+    makecommandbuffer();
+    appendcallbuffertobitmap();
 
-return 0;
-
-    setorigin((WIDTH-HEIGHT)/2, 0);
-
-    ptr = bitmap;
-
-    oldColour = 255;
-    for (i = 0; i < CURVECOUNT; i += CURVESTEP)
-    {
-        unsigned char* chunk = ptr;
-
-        for (j = 0; j < ITERATIONS; ++j)
-        {
-            unsigned char r = (i * 4) / CURVECOUNT;
-            unsigned char g = (j * 4) / ITERATIONS;
-            unsigned char b = 3 - (r+g) / 2;
-            unsigned char colour = rgbtoindex[r + g*4 + b*16];
-
-            if (colour != oldColour)
-            {
-                *ptr++ = 18; *ptr++ = 0; *ptr++ = colour;
-                oldColour = colour;
-            }
-
-            *ptr++ = 25; *ptr++ = 69; *ptr++ = j; *ptr++ = 0; *ptr++ = i/CURVESTEP; *ptr++ = 0;
-        }
-        writetobuffer(1, chunk, ptr-chunk);
-    }
-    callbuffer(1);
-    printnum(ptr-bitmap);
     t = 0;
 
-    while (getlastkey() != 125 && t == 0)
+    while (getlastkey() != 125)
     {
+        start = gettime();
+
+        ptr = bitmap;
+        while (ptr < bitmapEnd)
+        {
+            *((int*)(ptr)) = 0xc0c0c0;
+            ptr += 3;
+        }
+
         ang1Start = t;
         ang2Start = t;
         for (i = CURVECOUNT/CURVESTEP-1; i >= 0; --i)
@@ -170,25 +211,27 @@ return 0;
             for (j = ITERATIONS - 1; j >= 0; --j)
             {
                 ang1 = ang1Start + v;
+                *(((char*)&ang1)+2) = 0;
                 ang2 = ang2Start + u;
-                u = *(int*)(((char*)sintable)+(ang1 & SINTABLEMASK)) + *(int*)(((char*)sintable)+(ang2 & SINTABLEMASK)); // sin
-                v = *(int*)(((char*)sintable)+((ang1 + SINTABLEENTRIES) & SINTABLEMASK)) + *(int*)(((char*)sintable)+((ang2 + SINTABLEENTRIES) & SINTABLEMASK)); // cos
+                *(((char*)&ang2)+2) = 0;
+                u = *(int*)(((char*)sintable)+ang1) + *(int*)(((char*)sintable)+ang2); // sin
+                v = *(int*)(((char*)costable)+ang1) + *(int*)(((char*)costable)+ang2); // cos
 
-                if (j == 0)
-                {
-                    printnum(u);vdp_sendchar(' ');printnum(v);vdp_sendchar(' ');
-                }
-                gcolpointmacro(i, u>>7, v>>7);
+                bitmapCentre[scaleXTable[u] + scaleYTable[v]] = 0xc0+i;
             }
 
             ang1Start += SCALEVALUE;
             ang2Start += RVALUE;
         }
 
-        t += 32; // ENSURE THIS IS A MULTIPLE OF 4
+        t += 32*8; // ENSURE THIS IS A MULTIPLE OF 4
+
+        vdp_sendblock(bitmap - 8, HEIGHT*HEIGHT + 8 + 6); // +8 and +6 to include the write to bitmap buffer and call to command buffer
+
+        printnum(gettime()-start); vdp_sendstring("\r");
     }
 
-    printnum(gettime()-start);
+
 //    cls();
     cursor(1);
     return 0;
