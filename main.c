@@ -6,10 +6,10 @@
 #define WIDTH 320
 #define HEIGHT 240
 
-#define BITMAPBUFFER 1
+#define BITMAPBUFFER 65534
 #define BITMAPFORMAT 1
 
-#define COMMANDBUFFER 2
+#define COMMANDBUFFER 65533
 
 #define CURVECOUNT 256
 #define CURVESTEP 4
@@ -24,34 +24,10 @@
 #define RVALUE (4*(int)((CURVESTEP * (1<<SINTABLEPOWER)) / 235))
 #define SCALEVALUE (4*(int)((CURVESTEP * (1<<SINTABLEPOWER)) / (2*PI)))
 
-static unsigned char rgbtoindex[64] = {
-     0, 25,  1,  9, 17, 29, 42, 54,  2, 32,  3, 58, 10, 36, 48, 11,
-    16, 26, 40, 52, 18,  8, 43, 55, 21, 33, 46, 59, 23, 37, 49, 62,
-     4, 27,  5, 53, 19, 30, 44, 56,  6, 34,  7, 60, 24, 38, 50, 63,
-    12, 28, 41, 13, 20, 31, 45, 57, 22, 35, 47, 61, 14, 39, 51, 15
-};
-
-static char gcolPointBuffer[9] = {18, 0, 0, 25, 69, 0, 0, 0, 0};
-#define gcolpointmacro(colour, x, y) \
-{ \
-    gcolPointBuffer[2] = colour; \
-    *(short*)(gcolPointBuffer+5) = x; \
-    *(short*)(gcolPointBuffer+7) = y; \
-    vdp_sendblock(gcolPointBuffer, 9); \
-}
-
 static char waitForVSYNCBuffer[3] = {23, 0, 0xc3};
 #define waitforvsyncmacro() \
 { \
     vdp_sendblock(waitForVSYNCBuffer, 3); \
-}
-
-static char setOriginBuffer[5] = {29, 0, 0, 0, 0};
-#define setorigin(x, y) \
-{ \
-    *(short*)(setOriginBuffer+1) = x; \
-    *(short*)(setOriginBuffer+3) = y; \
-    vdp_sendblock(setOriginBuffer, 5); \
 }
 
 static char clearBufferBuffer[6] = {23, 0, 0xA0, 0, 0, 2};
@@ -59,6 +35,11 @@ static char clearBufferBuffer[6] = {23, 0, 0xA0, 0, 0, 2};
 { \
     *(short*)(clearBufferBuffer+3) = bufferId; \
     vdp_sendblock(clearBufferBuffer, 6); \
+}
+
+#define clearallbuffers() \
+{ \
+    clearbuffer(65535); \
 }
 
 static char writeToBufferBuffer[8] = {23, 0, 0xA0, 0, 0, 0, 0, 0};
@@ -75,6 +56,33 @@ static char callBufferBuffer[6] = {23, 0, 0xA0, 0, 0, 1};
 { \
     *(short*)(callBufferBuffer+3) = bufferId; \
     vdp_sendblock(callBufferBuffer, 6); \
+}
+
+static char createBufferBuffer[8] = {23, 0, 0xA0, 0, 0, 3, 0, 0};
+#define createbuffer(bufferId, length) \
+{ \
+    *(short*)(createBufferBuffer+3) = bufferId; \
+    *(short*)(createBufferBuffer+6) = length; \
+    vdp_sendblock(createBufferBuffer, 8); \
+}
+
+static char adjustBufferBuffer[12] = {23, 0, 0xA0, 0, 0, 5, 0, 0, 0, 0, 0, 0};
+#define adjustbuffer(bufferId, operation, offset, operand) \
+{ \
+    *(short*)(adjustBufferBuffer+3) = bufferId; \
+    adjustBufferBuffer[6] = operation; \
+    *(short*)(adjustBufferBuffer+7) = offset; \
+    adjustBufferBuffer[9] = operand; \
+    vdp_sendblock(adjustBufferBuffer, 10); \
+}
+#define adjustbuffermultiple(bufferId, operation, offset, count, operand) \
+{ \
+    *(short*)(adjustBufferBuffer+3) = bufferId; \
+    adjustBufferBuffer[6] = operation; \
+    *(short*)(adjustBufferBuffer+7) = offset; \
+    *(short*)(adjustBufferBuffer+9) = count; \
+    adjustBufferBuffer[11] = operand; \
+    vdp_sendblock(adjustBufferBuffer, 12); \
 }
 
 static char selectBufferForBitmapBuffer[5] = {23, 27, 0x20, 0, 0};
@@ -102,16 +110,47 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
     vdp_sendblock(drawBitmapBuffer, 7); \
 }
 
+#define makecolour(outer, inner) (0xc0 + (outer) + (inner)*4 + (3-(((outer)+(inner))>>1)) * 16)
 
-#define sintable ((long*)0x4C000)
+#define innerloop(outer, inner) \
+{ \
+    for (j = ITERATIONS/4 - 1; j >= 0; --j) \
+    { \
+        ang1 = ang1Start + v; \
+        *(((char*)&ang1)+2) = 0; \
+        ang2 = ang2Start + u; \
+        *(((char*)&ang2)+2) = 0; \
+        u = *(int*)(((char*)sintable)+ang1) + *(int*)(((char*)sintable)+ang2); \
+        v = *(int*)(((char*)costable)+ang1) + *(int*)(((char*)costable)+ang2); \
+ \
+        bitmapCentre[scaleXTable[u] + scaleYTable[v]] = makecolour(outer,inner); \
+    } \
+}
+
+#define outerloop(outer) \
+{ \
+    for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i) \
+    { \
+        u = 0; \
+        v = 0; \
+        innerloop(outer,0); \
+        innerloop(outer,1); \
+        innerloop(outer,2); \
+        innerloop(outer,3); \
+        ang1Start += SCALEVALUE; \
+        ang2Start += RVALUE; \
+    } \
+}
+
+#define sintable ((long*)0x4C000) // 0x4C000 - 0x5FFFF
 #define costable ((long*)(((char*)sintable)+SINTABLEENTRIES))
 
-#define bitmap ((char*)0x60000)
+#define bitmap ((char*)0x60000) // 0x60000 - 0x6FFFF
 #define bitmapCentre ((char*)(bitmap+(HEIGHT+1)*HEIGHT/2))
 #define bitmapEnd ((char*)(bitmap+HEIGHT*HEIGHT))
 
-#define scaleXTable ((char*)0x78000)
-#define scaleYTable ((int*)0x98000)
+#define scaleXTable ((char*)0x78000) // 0x70000 - 0x7FFFF
+#define scaleYTable ((int*)0x98000) // 0x80000 - 0xAFFFF
 
 #define scaleDiv 174
 void generatescaletables()
@@ -171,23 +210,77 @@ void appendcallbuffertobitmap()
     bitmapEnd[5] = 1;
 }
 
+void createRLEbuffers()
+{
+    int len, bufferId;
+    unsigned char colA, colB, colour, sequence[2];
+
+    bufferId = 0;
+    for (colA = 0; colA < 16; ++colA)
+    {
+        colour = makecolour(colA >> 2, colA & 3);
+
+        for (len = 1; len <= 256; ++len)
+        {
+            createbuffer(bufferId, len + 1);
+            if (len != 1)
+            {
+                adjustbuffermultiple(bufferId, 0x42, 0, len, 0xc0);
+            }
+            else
+            {
+                adjustbuffer(bufferId, 2, 0, 0xc0);
+            }
+            adjustbuffer(bufferId, 2, len, colour);
+            ++bufferId;
+        }
+    }
+
+    for (len = 2; len <= 257; ++len)
+    {
+        createbuffer(bufferId, len);
+        adjustbuffermultiple(bufferId, 0x42, 0, len, 0xc0);
+        ++bufferId;
+    }
+
+    for (colB = 0; colB < 16; ++colB)
+    {
+        for (colA = 0; colA < 16; ++colA)
+        {
+            sequence[0] = makecolour(colA >> 2, colA & 3);
+            sequence[1] = makecolour(colB >> 2, colB & 3);
+            writetobuffer(bufferId, sequence, 2);
+            ++bufferId;
+        }
+    }
+
+    for (colA = 0; colA < 16; ++colA)
+    {
+        sequence[0] = makecolour(colA >> 2, colA & 3);
+        sequence[1] = 0xc0;
+        writetobuffer(bufferId, sequence, 2);
+        ++bufferId;
+    }
+}
+
 int main(void)
 {
     long start = gettime();
 
     int t, ang1Start, ang2Start, ang1, ang2, u, v;
-    int i, j;
+    char i, j;
     unsigned char* ptr;
     unsigned char oldColour;
 
-    clearbuffer(BITMAPBUFFER);
-    clearbuffer(COMMANDBUFFER);
+    clearallbuffers();
     selectbufferforbitmap(BITMAPBUFFER);
 
     generatescaletables();
     expandsintable();
     makecommandbuffer();
     appendcallbuffertobitmap();
+    createRLEbuffers();
+printnum(gettime()-start); vdp_sendstring("\n\r");
 
     t = 0;
 
@@ -204,25 +297,10 @@ int main(void)
 
         ang1Start = t;
         ang2Start = t;
-        for (i = CURVECOUNT/CURVESTEP-1; i >= 0; --i)
-        {
-            u = 0;
-            v = 0;
-            for (j = ITERATIONS - 1; j >= 0; --j)
-            {
-                ang1 = ang1Start + v;
-                *(((char*)&ang1)+2) = 0;
-                ang2 = ang2Start + u;
-                *(((char*)&ang2)+2) = 0;
-                u = *(int*)(((char*)sintable)+ang1) + *(int*)(((char*)sintable)+ang2); // sin
-                v = *(int*)(((char*)costable)+ang1) + *(int*)(((char*)costable)+ang2); // cos
-
-                bitmapCentre[scaleXTable[u] + scaleYTable[v]] = 0xc0+i;
-            }
-
-            ang1Start += SCALEVALUE;
-            ang2Start += RVALUE;
-        }
+        outerloop(0);
+        outerloop(1);
+        outerloop(2);
+        outerloop(3);
 
         t += 32*8; // ENSURE THIS IS A MULTIPLE OF 4
 
