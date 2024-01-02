@@ -153,6 +153,9 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 #define scaleXTable ((char*)0x78000) // 0x70000 - 0x7FFFF
 #define scaleYTable ((int*)0x98000) // 0x80000 - 0xAFFFF
 
+#define rleHeader ((char*)0xB0000) // 0xB0000 - max length of RLE data
+#define rleData ((char*)(rleHeader+6))
+
 #define scaleDiv 174
 void generatescaletables()
 {
@@ -196,14 +199,24 @@ void makecommandbuffer()
     writetobuffer(COMMANDBUFFER, commandBuffer, 21);
 }
 
-void prependcopymultipletobitmap()
+void prependandappend()
 {
-    bitmap[-6] = 23;
-    bitmap[-5] = 0;
-    bitmap[-4] = 0xA0;
-    *(short*)(bitmap-3) = BITMAPBUFFER;
-    bitmap[-1] = 13;
+    rleHeader[0] = 23;
+    rleHeader[1] = 0;
+    rleHeader[2] = 0xA0;
+    *(short*)(rleHeader+3) = BITMAPBUFFER;
+    rleHeader[5] = 13;
+
     bitmapEnd[0] = 255;
+}
+
+void clearbitmap()
+{
+    unsigned int* ptr = (unsigned int*)bitmap;
+    while (ptr < bitmapEnd)
+    {
+        *ptr++ = 0;
+    }
 }
 
 void createRLEbuffers()
@@ -266,8 +279,9 @@ int main(void)
 
     generatescaletables();
     expandsintable();
+    clearbitmap();
+    prependandappend();
     makecommandbuffer();
-    prependcopymultipletobitmap();
     createRLEbuffers();
 printnum(gettime()-start); vdp_sendstring("\n\r");
 
@@ -279,13 +293,6 @@ start = gettime();
     {
 //        start = gettime();
 
-        ptr = bitmap;
-        while (ptr < bitmapEnd)
-        {
-            *((int*)(ptr)) = 0;
-            ptr += 3;
-        }
-
         ang1Start = t;
         ang2Start = t;
         outerloop(0);
@@ -293,7 +300,8 @@ start = gettime();
         outerloop(2);
         outerloop(3);
 
-        ptr = rle = bitmap;
+        ptr = bitmap;
+        rle = rleData;
         while (1)
         {
             if (*ptr == 0)
@@ -315,6 +323,7 @@ start = gettime();
                     unsigned char col = *ptr;
                     if (col != 255)
                     {
+                        *ptr = 0;
                         *rle = len;
                         *(rle+1) = col;
                         rle += 2;
@@ -333,12 +342,13 @@ start = gettime();
             {
                 *(unsigned short*)rle = 0x2000 + *(unsigned short*)ptr;
                 rle += 2;
+                *(unsigned short*)ptr = 0;
                 ptr += 2;
             }
         }
         *(unsigned short*)rle = 0xFFFF;
 
-        vdp_sendblock(bitmap - 6, rle + 2 - bitmap + 6); // -6 to include the copy multiple command
+        vdp_sendblock(rleHeader, rle+2 - rleHeader);
         callbuffer(COMMANDBUFFER);
 
         t += 40*4; // ENSURE THIS IS A MULTIPLE OF 4
