@@ -118,13 +118,13 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
     for (j = ITERATIONS/4 - 1; j >= 0; --j) \
     { \
         ang1 = ang1Start + v; \
-        *(((char*)&ang1)+2) = 0; \
+        *(((char*)&ang1)+2) = (int)costable>>16; \
         ang2 = ang2Start + u; \
-        *(((char*)&ang2)+2) = 0; \
-        u = *(int*)(((char*)sintable)+ang1) + *(int*)(((char*)sintable)+ang2); \
-        v = *(int*)(((char*)costable)+ang1) + *(int*)(((char*)costable)+ang2); \
+        *(((char*)&ang2)+2) = (int)costable>>16; \
+        u = *(int*)(ang1-SINTABLEENTRIES) + *(int*)(ang2-SINTABLEENTRIES); \
+        v = *(int*)ang1 + *(int*)ang2; \
  \
-        bitmapCentre[scaleXTable[u] + scaleYTable[v]] = makecolourindex(outer,inner); \
+        *(unsigned char*)(scaleYTable[v] + scaleXTable[u]) = makecolourindex(outer,inner); \
     } \
 }
 
@@ -150,8 +150,8 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 #define bitmapCentre ((char*)(bitmap+(HEIGHT+1)*HEIGHT/2))
 #define bitmapEnd ((char*)(bitmap+HEIGHT*HEIGHT))
 
-#define scaleXTable ((char*)0x78000) // 0x70000 - 0x7FFFF
-#define scaleYTable ((int*)0x98000) // 0x80000 - 0xAFFFF
+#define scaleXTable ((unsigned char*)0x78000) // 0x70000 - 0x7FFFF
+#define scaleYTable ((unsigned int*)0x98000) // 0x80000 - 0xAFFFF
 
 #define rleHeader ((char*)0xB0000) // 0xB0000 - max length of RLE data
 #define rleData ((char*)(rleHeader+6))
@@ -159,7 +159,7 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 #define scaleDiv 174
 void generatescaletables()
 {
-    int i, step = 0, xv = -32768 / scaleDiv, yv = xv * HEIGHT;
+    int i, step = 0, xv = -32768 / scaleDiv + HEIGHT/2, yv = (int)bitmap + xv * HEIGHT;
     for (i = -32768; i < 32768; ++i)
     {
         scaleXTable[i] = xv;
