@@ -111,6 +111,7 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 }
 
 #define makecolour(outer, inner) (0xc0 + (outer) + (inner)*4 + (3-(((outer)+(inner))>>1)) * 16)
+#define makecolourindex(outer, inner) ((outer<<2) + inner + 1)
 
 #define innerloop(outer, inner) \
 { \
@@ -123,7 +124,7 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
         u = *(int*)(((char*)sintable)+ang1) + *(int*)(((char*)sintable)+ang2); \
         v = *(int*)(((char*)costable)+ang1) + *(int*)(((char*)costable)+ang2); \
  \
-        bitmapCentre[scaleXTable[u] + scaleYTable[v]] = makecolour(outer,inner); \
+        bitmapCentre[scaleXTable[u] + scaleYTable[v]] = makecolourindex(outer,inner); \
     } \
 }
 
@@ -181,33 +182,28 @@ void expandsintable()
 
 void makecommandbuffer()
 {
-    char commandBuffer[21] = {23, 27, 0x21, 0, 0, 0, 0, 0,    23, 27, 3, 0, 0, 0, 0,    23, 0, 0xA0, 0, 0, 2};
-    *(short*)(commandBuffer+3) = HEIGHT;
-    *(short*)(commandBuffer+5) = HEIGHT;
-    commandBuffer[7] = BITMAPFORMAT;
+    char commandBuffer[21] = {23, 0, 0xA0, 0, 0, 14,    23, 27, 0x21, 0, 0, 0, 0, 0,    23, 27, 3, 0, 0, 0, 0};
 
-    *(short*)(commandBuffer+8+3) = (WIDTH-HEIGHT)/2;
-    *(short*)(commandBuffer+8+5) = 0;
+    *(short*)(commandBuffer+0 + 3) = BITMAPBUFFER;
 
-    *(short*)(commandBuffer+15 + 3) = BITMAPBUFFER;
+    *(short*)(commandBuffer+6+3) = HEIGHT;
+    *(short*)(commandBuffer+6+5) = HEIGHT;
+    commandBuffer[6+7] = BITMAPFORMAT;
+
+    *(short*)(commandBuffer+14+3) = (WIDTH-HEIGHT)/2;
+    *(short*)(commandBuffer+14+5) = 0;
 
     writetobuffer(COMMANDBUFFER, commandBuffer, 21);
 }
 
-void appendcallbuffertobitmap()
+void prependcopymultipletobitmap()
 {
-    bitmap[-8] = 23;
-    bitmap[-7] = 0;
-    bitmap[-6] = 0xA0;
-    *(short*)(bitmap-5) = BITMAPBUFFER;
-    bitmap[-3] = 0;
-    *(short*)(bitmap-2) = HEIGHT*HEIGHT;
-
-    bitmapEnd[0] = 23;
-    bitmapEnd[1] = 0;
-    bitmapEnd[2] = 0xA0;
-    *(short*)(bitmapEnd+3) = COMMANDBUFFER;
-    bitmapEnd[5] = 1;
+    bitmap[-6] = 23;
+    bitmap[-5] = 0;
+    bitmap[-4] = 0xA0;
+    *(short*)(bitmap-3) = BITMAPBUFFER;
+    bitmap[-1] = 13;
+    bitmapEnd[0] = 255;
 }
 
 void createRLEbuffers()
@@ -216,6 +212,13 @@ void createRLEbuffers()
     unsigned char colA, colB, colour, sequence[2];
 
     bufferId = 0;
+    for (len = 1; len <= 256; ++len)
+    {
+        createbuffer(bufferId, len);
+        adjustbuffermultiple(bufferId, 0x42, 0, len, 0xc0);
+        ++bufferId;
+    }
+
     for (colA = 0; colA < 16; ++colA)
     {
         colour = makecolour(colA >> 2, colA & 3);
@@ -223,43 +226,28 @@ void createRLEbuffers()
         for (len = 1; len <= 256; ++len)
         {
             createbuffer(bufferId, len + 1);
-            if (len != 1)
-            {
-                adjustbuffermultiple(bufferId, 0x42, 0, len, 0xc0);
-            }
-            else
-            {
-                adjustbuffer(bufferId, 2, 0, 0xc0);
-            }
+            adjustbuffermultiple(bufferId, 0x42, 0, len, 0xc0);
             adjustbuffer(bufferId, 2, len, colour);
             ++bufferId;
         }
     }
 
-    for (len = 2; len <= 257; ++len)
-    {
-        createbuffer(bufferId, len);
-        adjustbuffermultiple(bufferId, 0x42, 0, len, 0xc0);
-        ++bufferId;
-    }
-
     for (colB = 0; colB < 16; ++colB)
     {
+        sequence[1] = makecolour(colB >> 2, colB & 3);
+        bufferId = ((colB+1)<<8) + 0x2001;
         for (colA = 0; colA < 16; ++colA)
         {
             sequence[0] = makecolour(colA >> 2, colA & 3);
-            sequence[1] = makecolour(colB >> 2, colB & 3);
-            writetobuffer(bufferId, sequence, 2);
-            ++bufferId;
+            writetobuffer(bufferId + colA, sequence, 2);
         }
     }
 
+    sequence[1] = 0xc0;
     for (colA = 0; colA < 16; ++colA)
     {
         sequence[0] = makecolour(colA >> 2, colA & 3);
-        sequence[1] = 0xc0;
-        writetobuffer(bufferId, sequence, 2);
-        ++bufferId;
+        writetobuffer(colA + 0x2001, sequence, 2);
     }
 }
 
@@ -269,8 +257,9 @@ int main(void)
 
     int t, ang1Start, ang2Start, ang1, ang2, u, v;
     char i, j;
+    unsigned char len;
     unsigned char* ptr;
-    unsigned char oldColour;
+    unsigned char* rle;
 
     clearallbuffers();
     selectbufferforbitmap(BITMAPBUFFER);
@@ -278,20 +267,22 @@ int main(void)
     generatescaletables();
     expandsintable();
     makecommandbuffer();
-    appendcallbuffertobitmap();
+    prependcopymultipletobitmap();
     createRLEbuffers();
 printnum(gettime()-start); vdp_sendstring("\n\r");
 
     t = 0;
 
-    while (getlastkey() != 125)
+start = gettime();
+
+    while (getlastkey() != 125 && t < 400*4)
     {
-        start = gettime();
+//        start = gettime();
 
         ptr = bitmap;
         while (ptr < bitmapEnd)
         {
-            *((int*)(ptr)) = 0xc0c0c0;
+            *((int*)(ptr)) = 0;
             ptr += 3;
         }
 
@@ -302,13 +293,59 @@ printnum(gettime()-start); vdp_sendstring("\n\r");
         outerloop(2);
         outerloop(3);
 
-        t += 32*8; // ENSURE THIS IS A MULTIPLE OF 4
+        ptr = rle = bitmap;
+        while (1)
+        {
+            if (*ptr == 0)
+            {
+                len = 0;
+                if (*(unsigned int*)ptr == 0)
+                {
+                    do
+                    {
+                        ptr += 3;
+                        len += 3;
+                    } while (*(unsigned int*)ptr == 0 && len < 255);
+                    --ptr;
+                    --len;
+                }
+                while (*++ptr == 0 && ++len < 255) {}
 
-        vdp_sendblock(bitmap - 8, HEIGHT*HEIGHT + 8 + 6); // +8 and +6 to include the write to bitmap buffer and call to command buffer
+                {
+                    unsigned char col = *ptr;
+                    if (col != 255)
+                    {
+                        *rle = len;
+                        *(rle+1) = col;
+                        rle += 2;
+                        ++ptr;
+                    }
+                    else
+                    {
+                        *rle = len;
+                        *(rle+1) = 0;
+                        rle += 2;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                *(unsigned short*)rle = 0x2000 + *(unsigned short*)ptr;
+                rle += 2;
+                ptr += 2;
+            }
+        }
+        *(unsigned short*)rle = 0xFFFF;
 
-        printnum(gettime()-start); vdp_sendstring("\r");
+        vdp_sendblock(bitmap - 6, rle + 2 - bitmap + 6); // -6 to include the copy multiple command
+        callbuffer(COMMANDBUFFER);
+
+        t += 40*4; // ENSURE THIS IS A MULTIPLE OF 4
+
+//        printnum(gettime()-start); vdp_sendstring("\r");
     }
-
+printnum(gettime()-start); vdp_sendstring("\n\r");
 
 //    cls();
     cursor(1);
