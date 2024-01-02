@@ -264,15 +264,20 @@ void createRLEbuffers()
     }
 }
 
+// From main.src
+#define asm_rle "IX-34"
+#define asm_ptr "IX-31"
+#define asm_len "IX-28"
+
 int main(void)
 {
     long start = gettime();
 
     int t, ang1Start, ang2Start, ang1, ang2, u, v;
     char i, j;
-    unsigned char len;
-    unsigned char* ptr;
-    unsigned char* rle;
+    volatile unsigned char len;
+    volatile char* ptr;
+    volatile unsigned char* rle;
 
     clearallbuffers();
     selectbufferforbitmap(BITMAPBUFFER);
@@ -304,48 +309,146 @@ start = gettime();
         rle = rleData;
         while (1)
         {
+            asm("RLE_Loop:");
+
             if (*ptr == 0)
             {
                 len = 0;
                 if (*(unsigned int*)ptr == 0)
                 {
-                    do
+                    // do
                     {
-                        ptr += 3;
-                        len += 3;
-                    } while (*(unsigned int*)ptr == 0 && len < 255);
-                    --ptr;
-                    --len;
+                        asm("    LD IY,("asm_ptr")");
+                        asm("    LD A,("asm_len")");
+
+                        asm("RLE_CountBlack3Loop:");
+
+                        // ptr += 3;
+                        asm("    LEA IY,IY+%3");
+
+                        // len += 3;
+                        asm("    ADD A,%3");
+                    }
+                    // while (*(unsigned int*)ptr == 0 && len < 255);
+                    asm("    LD BC,0");
+                    asm("    LD HL,(IY)");
+                    asm("    OR A,A");
+                    asm("    SBC HL,BC");
+                    asm("    JR NZ,RLE_CountBlack3End");
+                    asm("    CP A,%FF");
+                    asm("    JR C,RLE_CountBlack3Loop");
+                    asm("RLE_CountBlack3End:");
+
+                    // --ptr;
+                    asm("    DEC IY");
+                    asm("    LD ("asm_ptr"),IY");
+
+                    // --len;
+                    asm("    DEC A");
+                    asm("    LD ("asm_len"),A");
                 }
-                while (*++ptr == 0 && ++len < 255) {}
+
+                // while (*++ptr == 0 && ++len < 255) {}
+                asm("    LD HL,("asm_ptr")");
+                asm("    LD B,("asm_len")");
+                asm("RLE_CountBlack1Loop:");
+                asm("    INC HL");
+                asm("    LD A,(HL)");
+                asm("    OR A,A");
+                asm("    JR NZ,RLE_CountBlack1End");
+                asm("    INC B");
+                asm("    LD A,B");
+                asm("    CP A,%FF");
+                asm("    JR C,RLE_CountBlack1Loop");
+                asm("RLE_CountBlack1End:");
+                asm("    LD ("asm_len"),B");
 
                 {
-                    unsigned char col = *ptr;
-                    if (col != 255)
+                     // col = *ptr;
+                    asm("    LD A,(HL)");
+
+                    // *ptr = 0;
+                    asm("    LD (HL),%0");
+
+                    // if (col != 255)
+                    asm("    CP A,%FF");
+                    asm("    JR	Z,RLE_LastRun");
+
                     {
-                        *ptr = 0;
-                        *rle = len;
-                        *(rle+1) = col;
-                        rle += 2;
-                        ++ptr;
+                        // ++ptr;
+                        asm("    INC HL");
+                        asm("    LD ("asm_ptr"),HL");
+
+                        // *rle = len;
+                        asm("    LD HL,("asm_rle")");
+                        asm("    LD B,("asm_len")");
+                        asm("    LD	(HL),B");
+
+                        // *(rle+1) = col;
+                        asm("    INC HL");
+                        asm("    LD (HL),A");
+
+                        // rle += 2;
+                        asm("    INC HL");
+                        asm("    LD ("asm_rle"),HL");
+
+                        asm("    JR RLE_Loop");
                     }
-                    else
+                    // else
                     {
-                        *rle = len;
-                        *(rle+1) = 0;
-                        rle += 2;
+                        asm("RLE_LastRun:");
+
+                        // *ptr = 255;
+                        asm("    LD (HL),%FF");
+
+                        //*rle = len;
+                        asm("    LD HL,("asm_rle")");
+                        asm("    LD A,("asm_len")");
+                        asm("    LD (HL),A");
+
+                        //*(rle+1) = 0;
+                        asm("    LD HL,("asm_rle")");
+                        asm("    INC HL");
+                        asm("    LD (HL),%0");
+
+                        //rle += 2;
+                        asm("    INC HL");
+                        asm("    LD ("asm_rle"),HL");
+
                         break;
+                        //asm("    JR RLE_End");
                     }
                 }
             }
             else
             {
-                *(unsigned short*)rle = 0x2000 + *(unsigned short*)ptr;
-                rle += 2;
-                *(unsigned short*)ptr = 0;
-                ptr += 2;
+//                *(unsigned short*)rle = 0x2000 + *(unsigned short*)ptr;
+                asm("    LD HL,("asm_ptr")");
+                asm("    LD HL,(HL)");
+                asm("    LD.LIS DE,8192");
+                asm("    ADD.SIS HL,DE");
+                asm("    LD BC,HL");
+                asm("    LD HL,("asm_rle")");
+                asm("    LD (HL),C");
+                asm("    INC HL");
+                asm("    LD (HL),B");
+
+//                rle += 2;
+                asm("    INC HL");
+                asm("    LD ("asm_rle"),HL");
+
+                // *(unsigned short*)ptr = 0;
+                asm("    LD HL,("asm_ptr")");
+                asm("    LD (HL),%0");
+                asm("    INC HL");
+                asm("    LD (HL),%0");
+
+                // ptr += 2;
+                asm("    INC HL");
+                asm("    LD ("asm_ptr"),HL");
             }
         }
+//        asm("RLE_End:");
         *(unsigned short*)rle = 0xFFFF;
 
         vdp_sendblock(rleHeader, rle+2 - rleHeader);
