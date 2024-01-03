@@ -118,9 +118,9 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
     for (j = ITERATIONS/4 - 1; j >= 0; --j) \
     { \
         ang1 = ang1Start + v; \
-        *(((char*)&ang1)+2) = (int)costable>>16; \
+        *(((char*)&ang1)+2) = (char)costable>>16; \
         ang2 = ang2Start + u; \
-        *(((char*)&ang2)+2) = (int)costable>>16; \
+        *(((char*)&ang2)+2) = (char)costable>>16; \
         u = *(int*)(ang1-SINTABLEENTRIES) + *(int*)(ang2-SINTABLEENTRIES); \
         v = *(int*)ang1 + *(int*)ang2; \
  \
@@ -318,6 +318,7 @@ start = gettime();
                 {
                     // do
                     {
+                        asm("    OR A,A");
                         asm("    LD IY,("asm_ptr")");
                         asm("    LD A,("asm_len")");
 
@@ -332,7 +333,6 @@ start = gettime();
                     // while (*(unsigned int*)ptr == 0 && len < 255);
                     asm("    LD BC,0");
                     asm("    LD HL,(IY)");
-                    asm("    OR A,A");
                     asm("    SBC HL,BC");
                     asm("    JR NZ,RLE_CountBlack3End");
                     asm("    CP A,%FF");
@@ -423,29 +423,27 @@ start = gettime();
             else
             {
 //                *(unsigned short*)rle = 0x2000 + *(unsigned short*)ptr;
-                asm("    LD HL,("asm_ptr")");
-                asm("    LD HL,(HL)");
-                asm("    LD.LIS DE,8192");
-                asm("    ADD.SIS HL,DE");
-                asm("    LD BC,HL");
+                asm("    LD IY,("asm_ptr")");
+                asm("    LD BC,(IY)");
+                asm("    LD A,32");
+                asm("    ADD A,B");
                 asm("    LD HL,("asm_rle")");
                 asm("    LD (HL),C");
                 asm("    INC HL");
-                asm("    LD (HL),B");
+                asm("    LD (HL),A");
 
 //                rle += 2;
                 asm("    INC HL");
                 asm("    LD ("asm_rle"),HL");
 
                 // *(unsigned short*)ptr = 0;
-                asm("    LD HL,("asm_ptr")");
-                asm("    LD (HL),%0");
-                asm("    INC HL");
-                asm("    LD (HL),%0");
+                asm("    LD (IY),%0");
+                asm("    INC IY");
+                asm("    LD (IY),%0");
 
                 // ptr += 2;
-                asm("    INC HL");
-                asm("    LD ("asm_ptr"),HL");
+                asm("    INC IY");
+                asm("    LD ("asm_ptr"),IY");
             }
         }
 //        asm("RLE_End:");
