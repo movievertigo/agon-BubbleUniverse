@@ -25,16 +25,14 @@
 #define SCALEVALUE (4*(int)((CURVESTEP * (1<<SINTABLEPOWER)) / (2*PI)))
 
 // From main.src
-#define asm_rle "IX-22"
-#define asm_ptr "IX-19"
-#define asm_len "IX-16"
+#define asm_rle "IX-15"
+#define asm_ptr "IX-12"
+#define asm_len "IX-9"
 
-#define asm_u "IX-34"
-#define asm_v "IX-25"
-#define asm_ang1 "IX-28"
-#define asm_ang2 "IX-31"
-#define asm_ang1Start "IX-5"
-#define asm_ang2Start "IX-8"
+#define asm_u "IX-27"
+#define asm_v "IX-19"
+#define asm_ang1 "IX-21"
+#define asm_ang2 "IX-24"
 
 
 
@@ -133,39 +131,40 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
     { \
         /* ang2 = ang2Start + u; */ \
         asm("    POP BC"); \
-        asm("    LD HL,("asm_ang2Start")"); \
-        asm("    ADD.s HL,BC"); \
-        asm("    ADD HL,DE"); \
-        asm("    PUSH HL"); \
+        asm("    LD IX,(_ang2Start)"); \
+        asm("    ADD.s IX,BC"); \
+\
         /* *(((char*)&ang2)+2) = (char)costable>>16; */ \
+        asm("    ADD IX,DE"); \
 \
         /* ang1 = ang1Start + v; */ \
-        asm("    LD BC,("asm_v")"); \
-        asm("    LD IY,("asm_ang1Start")"); \
+        asm("    POP BC"); \
+        asm("    LD IY,(_ang1Start)"); \
         asm("    ADD.s IY,BC"); \
-        asm("    ADD IY,DE"); \
+\
         /* *(((char*)&ang1)+2) = (char)costable>>16; */ \
+        asm("    ADD IY,DE"); \
 \
         /* v = *(int*)ang1 + *(int*)ang2; */ \
         asm("    LD BC,(IY)"); \
-        asm("    LD HL,(HL)"); \
+        asm("    LD HL,(IX)"); \
         asm("    ADD HL,BC"); \
-        asm("    LD ("asm_v"),HL"); \
+        asm("    PUSH HL"); \
 \
         /* u = *(int*)(ang1-SINTABLEENTRIES) + *(int*)(ang2-SINTABLEENTRIES); */ \
-        asm("    LD	BC,-16384"); \
-        asm("    ADD IY,BC"); \
-        asm("    POP HL"); \
-        asm("    ADD HL,BC"); \
+        asm("    EXX"); /* Switch to alt registers to get other constants */ \
+        asm("    ADD IY,BC"); /* BC' */ \
+        asm("    ADD IX,BC"); /* BC' */ \
+        asm("    EXX"); /* Switch back to standard registers */ \
         asm("    LD BC,(IY)"); \
-        asm("    LD IY,(HL)"); \
+        asm("    LD IY,(IX)"); \
         asm("    ADD IY,BC"); \
         asm("    PUSH IY"); \
 \
         /* *(unsigned char*)(scaleYTable[v] + scaleXTable[u]) = colIndex; */ \
-        asm("    LD BC,78000h"); \
-        asm("    ADD IY,BC"); \
-        asm("    LD HL,("asm_v")"); \
+        asm("    EXX"); /* Switch to alt registers to get other constants */ \
+        asm("    ADD IY,DE"); /* DE' */ \
+        asm("    EXX"); /* Switch back to standard registers */ \
         asm("    LD BC,HL"); \
         asm("    ADD HL,HL"); \
         asm("    ADD HL,BC"); \
@@ -301,14 +300,16 @@ void createRLEbuffers()
     }
 }
 
+volatile int ang1Start;
+volatile int ang2Start;
+volatile char j;
+
 int main(void)
 {
     long start = gettime();
 
     int t;
-    char i, j;
-    volatile int ang1Start;
-    volatile int ang2Start;
+    char i;
     volatile int ang1;
     volatile int ang2;
     volatile int u;
@@ -339,56 +340,74 @@ start = gettime();
         ang1Start = t;
         ang2Start = t;
 
+        // Pre-load some constants into registers
         asm("    LD	DE,50000h");
+        asm("    EXX");
+        asm("    LD	BC,-16384");
+        asm("    LD DE,78000h");
+        asm("    EXX");
+
         for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
+            asm("    PUSH IX"); // Store current IX
             asm("    LD BC,0");
+            asm("    PUSH BC"); // v = 0
             asm("    PUSH BC"); // u = 0
-            asm("    LD ("asm_v"),BC"); // v = 0
             innerloop(1);
             innerloop(2);
             innerloop(3);
             innerloop(4);
             asm("    POP BC"); // Balance the stack
+            asm("    POP BC"); // Balance the stack
+            asm("    POP IX"); // Restore IX
             ang1Start += SCALEVALUE;
             ang2Start += RVALUE;
         }
         for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
+            asm("    PUSH IX"); // Store current IX
             asm("    LD BC,0");
+            asm("    PUSH BC"); // v = 0
             asm("    PUSH BC"); // u = 0
-            asm("    LD ("asm_v"),BC"); // v = 0
             innerloop(5);
             innerloop(6);
             innerloop(7);
             innerloop(8);
             asm("    POP BC"); // Balance the stack
+            asm("    POP BC"); // Balance the stack
+            asm("    POP IX"); // Restore IX
             ang1Start += SCALEVALUE;
             ang2Start += RVALUE;
         }
         for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
+            asm("    PUSH IX"); // Store current IX
             asm("    LD BC,0");
+            asm("    PUSH BC"); // v = 0
             asm("    PUSH BC"); // u = 0
-            asm("    LD ("asm_v"),BC"); // v = 0
             innerloop(9);
             innerloop(A);
             innerloop(B);
             innerloop(C);
             asm("    POP BC"); // Balance the stack
+            asm("    POP BC"); // Balance the stack
+            asm("    POP IX"); // Restore IX
             ang1Start += SCALEVALUE;
             ang2Start += RVALUE;
         }
         for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
+            asm("    PUSH IX"); // Store current IX
             asm("    LD BC,0");
             asm("    PUSH BC"); // u = 0
-            asm("    LD ("asm_v"),BC"); // v = 0
+            asm("    PUSH BC"); // u = 0
             innerloop(D);
             innerloop(E);
             innerloop(F);
             innerloop(10);
             asm("    POP BC"); // Balance the stack
+            asm("    POP BC"); // Balance the stack
+            asm("    POP IX"); // Restore IX
             ang1Start += SCALEVALUE;
             ang2Start += RVALUE;
         }
