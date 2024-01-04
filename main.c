@@ -25,12 +25,12 @@
 #define SCALEVALUE (4*(int)((CURVESTEP * (1<<SINTABLEPOWER)) / (2*PI)))
 
 // From main.src
-#define asm_rle "IX-15"
-#define asm_ptr "IX-12"
-#define asm_len "IX-9"
+#define asm_rle "IX-11"
+#define asm_ptr "IX-15"
+#define asm_len "IX-12"
 
 #define asm_u "IX-27"
-#define asm_v "IX-19"
+#define asm_v "IX-18"
 #define asm_ang1 "IX-21"
 #define asm_ang2 "IX-24"
 
@@ -413,19 +413,30 @@ start = gettime();
 
         ptr = bitmap;
         rle = rleData;
-        while (1)
+
+        asm("    LD IY,("asm_ptr")");
+        // while (1)
         {
             asm("RLE_Loop:");
 
-            if (*ptr == 0)
+            // if (*ptr == 0)
+            asm("    LD A,(IY)");
+            asm("    OR A,A");
+            asm("    JR NZ,RLE_ColourPair");
+
             {
-                len = 0;
-                if (*(unsigned int*)ptr == 0)
+                //len = 0;
+                asm("    LD ("asm_len"),%0");
+
+                // if (*(unsigned int*)ptr == 0)
+                asm("    LD BC,0");
+                asm("    LD HL,(IY)");
+                asm("    SBC HL,BC");
+                asm("    JR NZ,RLE_Not3Black");
+
                 {
                     // do
                     {
-                        asm("    OR A,A");
-                        asm("    LD IY,("asm_ptr")");
                         asm("    LD A,("asm_len")");
 
                         asm("RLE_CountBlack3Loop:");
@@ -447,19 +458,19 @@ start = gettime();
 
                     // --ptr;
                     asm("    DEC IY");
-                    asm("    LD ("asm_ptr"),IY");
 
                     // --len;
                     asm("    DEC A");
                     asm("    LD ("asm_len"),A");
                 }
 
+                asm("RLE_Not3Black:");
+
                 // while (*++ptr == 0 && ++len < 255) {}
-                asm("    LD HL,("asm_ptr")");
                 asm("    LD B,("asm_len")");
                 asm("RLE_CountBlack1Loop:");
-                asm("    INC HL");
-                asm("    LD A,(HL)");
+                asm("    INC IY");
+                asm("    LD A,(IY)");
                 asm("    OR A,A");
                 asm("    JR NZ,RLE_CountBlack1End");
                 asm("    INC B");
@@ -471,10 +482,10 @@ start = gettime();
 
                 {
                      // col = *ptr;
-                    asm("    LD A,(HL)");
+                    asm("    LD A,(IY)");
 
                     // *ptr = 0;
-                    asm("    LD (HL),%0");
+                    asm("    LD (IY),%0");
 
                     // if (col != 255)
                     asm("    CP A,%FF");
@@ -482,8 +493,7 @@ start = gettime();
 
                     {
                         // ++ptr;
-                        asm("    INC HL");
-                        asm("    LD ("asm_ptr"),HL");
+                        asm("    INC IY");
 
                         // *rle = len;
                         asm("    LD HL,("asm_rle")");
@@ -505,7 +515,7 @@ start = gettime();
                         asm("RLE_LastRun:");
 
                         // *ptr = 255;
-                        asm("    LD (HL),%FF");
+                        asm("    LD (IY),%FF");
 
                         //*rle = len;
                         asm("    LD HL,("asm_rle")");
@@ -521,15 +531,16 @@ start = gettime();
                         asm("    INC HL");
                         asm("    LD ("asm_rle"),HL");
 
-                        break;
-                        //asm("    JR RLE_End");
+                        //break;
+                        asm("    JR RLE_End");
                     }
                 }
             }
-            else
+            // else
             {
+                asm("RLE_ColourPair:");
+
 //                *(unsigned short*)rle = 0x2000 + *(unsigned short*)ptr;
-                asm("    LD IY,("asm_ptr")");
                 asm("    LD BC,(IY)");
                 asm("    LD A,20h");
                 asm("    ADD A,B");
@@ -549,10 +560,12 @@ start = gettime();
 
                 // ptr += 2;
                 asm("    INC IY");
-                asm("    LD ("asm_ptr"),IY");
+
+                asm("    JR RLE_Loop");
             }
         }
-//        asm("RLE_End:");
+        asm("RLE_End:");
+
         *(unsigned short*)rle = 0xFFFF;
 
         vdp_sendblock(rleHeader, rle+2 - rleHeader);
