@@ -171,9 +171,8 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
         asm("    LD BC,98000h"); \
         asm("    ADD HL,BC"); \
         asm("    LD BC,(HL)"); \
-        asm("    LD A,(IY)"); \
         asm("    UEXT HL"); \
-        asm("    LD L,A"); \
+        asm("    LD L,(IY)"); \
         asm("    ADD HL,BC"); \
         asm("    LD (HL),%"#colIndex); \
     } \
