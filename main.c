@@ -24,6 +24,20 @@
 #define RVALUE (4*(int)((CURVESTEP * (1<<SINTABLEPOWER)) / 235))
 #define SCALEVALUE (4*(int)((CURVESTEP * (1<<SINTABLEPOWER)) / (2*PI)))
 
+// From main.src
+#define asm_rle "IX-22"
+#define asm_ptr "IX-19"
+#define asm_len "IX-16"
+
+#define asm_u "IX-34"
+#define asm_v "IX-25"
+#define asm_ang1 "IX-28"
+#define asm_ang2 "IX-31"
+#define asm_ang1Start "IX-5"
+#define asm_ang2Start "IX-8"
+
+
+
 static char waitForVSYNCBuffer[3] = {23, 0, 0xc3};
 #define waitforvsyncmacro() \
 { \
@@ -113,33 +127,56 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 #define makecolour(outer, inner) (0xc0 + (outer) + (inner)*4 + (3-(((outer)+(inner))>>1)) * 16)
 #define makecolourindex(outer, inner) ((outer<<2) + inner + 1)
 
-#define innerloop(outer, inner) \
+#define innerloop(colIndex) \
 { \
     for (j = ITERATIONS/4 - 1; j >= 0; --j) \
     { \
-        ang1 = ang1Start + v; \
-        *(((char*)&ang1)+2) = (char)costable>>16; \
-        ang2 = ang2Start + u; \
-        *(((char*)&ang2)+2) = (char)costable>>16; \
-        u = *(int*)(ang1-SINTABLEENTRIES) + *(int*)(ang2-SINTABLEENTRIES); \
-        v = *(int*)ang1 + *(int*)ang2; \
- \
-        *(unsigned char*)(scaleYTable[v] + scaleXTable[u]) = makecolourindex(outer,inner); \
-    } \
-}
-
-#define outerloop(outer) \
-{ \
-    for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i) \
-    { \
-        u = 0; \
-        v = 0; \
-        innerloop(outer,0); \
-        innerloop(outer,1); \
-        innerloop(outer,2); \
-        innerloop(outer,3); \
-        ang1Start += SCALEVALUE; \
-        ang2Start += RVALUE; \
+        /* ang2 = ang2Start + u; */ \
+        asm("    POP BC"); \
+        asm("    LD HL,("asm_ang2Start")"); \
+        asm("    ADD.s HL,BC"); \
+        asm("    ADD HL,DE"); \
+        asm("    PUSH HL"); \
+        /* *(((char*)&ang2)+2) = (char)costable>>16; */ \
+\
+        /* ang1 = ang1Start + v; */ \
+        asm("    LD BC,("asm_v")"); \
+        asm("    LD IY,("asm_ang1Start")"); \
+        asm("    ADD.s IY,BC"); \
+        asm("    ADD IY,DE"); \
+        /* *(((char*)&ang1)+2) = (char)costable>>16; */ \
+\
+        /* v = *(int*)ang1 + *(int*)ang2; */ \
+        asm("    LD BC,(IY)"); \
+        asm("    LD HL,(HL)"); \
+        asm("    ADD HL,BC"); \
+        asm("    LD ("asm_v"),HL"); \
+\
+        /* u = *(int*)(ang1-SINTABLEENTRIES) + *(int*)(ang2-SINTABLEENTRIES); */ \
+        asm("    LD	BC,-16384"); \
+        asm("    ADD IY,BC"); \
+        asm("    POP HL"); \
+        asm("    ADD HL,BC"); \
+        asm("    LD BC,(IY)"); \
+        asm("    LD IY,(HL)"); \
+        asm("    ADD IY,BC"); \
+        asm("    PUSH IY"); \
+\
+        /* *(unsigned char*)(scaleYTable[v] + scaleXTable[u]) = colIndex; */ \
+        asm("    LD BC,78000h"); \
+        asm("    ADD IY,BC"); \
+        asm("    LD HL,("asm_v")"); \
+        asm("    LD BC,HL"); \
+        asm("    ADD HL,HL"); \
+        asm("    ADD HL,BC"); \
+        asm("    LD BC,98000h"); \
+        asm("    ADD HL,BC"); \
+        asm("    LD BC,(HL)"); \
+        asm("    LD A,(IY)"); \
+        asm("    UEXT HL"); \
+        asm("    LD L,A"); \
+        asm("    ADD HL,BC"); \
+        asm("    LD (HL),%"#colIndex); \
     } \
 }
 
@@ -264,17 +301,18 @@ void createRLEbuffers()
     }
 }
 
-// From main.src
-#define asm_rle "IX-34"
-#define asm_ptr "IX-31"
-#define asm_len "IX-28"
-
 int main(void)
 {
     long start = gettime();
 
-    int t, ang1Start, ang2Start, ang1, ang2, u, v;
+    int t;
     char i, j;
+    volatile int ang1Start;
+    volatile int ang2Start;
+    volatile int ang1;
+    volatile int ang2;
+    volatile int u;
+    volatile int v;
     volatile unsigned char len;
     volatile char* ptr;
     volatile unsigned char* rle;
@@ -300,10 +338,60 @@ start = gettime();
 
         ang1Start = t;
         ang2Start = t;
-        outerloop(0);
-        outerloop(1);
-        outerloop(2);
-        outerloop(3);
+
+        asm("    LD	DE,50000h");
+        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
+        {
+            asm("    LD BC,0");
+            asm("    PUSH BC"); // u = 0
+            asm("    LD ("asm_v"),BC"); // v = 0
+            innerloop(1);
+            innerloop(2);
+            innerloop(3);
+            innerloop(4);
+            asm("    POP BC"); // Balance the stack
+            ang1Start += SCALEVALUE;
+            ang2Start += RVALUE;
+        }
+        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
+        {
+            asm("    LD BC,0");
+            asm("    PUSH BC"); // u = 0
+            asm("    LD ("asm_v"),BC"); // v = 0
+            innerloop(5);
+            innerloop(6);
+            innerloop(7);
+            innerloop(8);
+            asm("    POP BC"); // Balance the stack
+            ang1Start += SCALEVALUE;
+            ang2Start += RVALUE;
+        }
+        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
+        {
+            asm("    LD BC,0");
+            asm("    PUSH BC"); // u = 0
+            asm("    LD ("asm_v"),BC"); // v = 0
+            innerloop(9);
+            innerloop(A);
+            innerloop(B);
+            innerloop(C);
+            asm("    POP BC"); // Balance the stack
+            ang1Start += SCALEVALUE;
+            ang2Start += RVALUE;
+        }
+        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
+        {
+            asm("    LD BC,0");
+            asm("    PUSH BC"); // u = 0
+            asm("    LD ("asm_v"),BC"); // v = 0
+            innerloop(D);
+            innerloop(E);
+            innerloop(F);
+            innerloop(10);
+            asm("    POP BC"); // Balance the stack
+            ang1Start += SCALEVALUE;
+            ang2Start += RVALUE;
+        }
 
         ptr = bitmap;
         rle = rleData;
@@ -425,7 +513,7 @@ start = gettime();
 //                *(unsigned short*)rle = 0x2000 + *(unsigned short*)ptr;
                 asm("    LD IY,("asm_ptr")");
                 asm("    LD BC,(IY)");
-                asm("    LD A,32");
+                asm("    LD A,20h");
                 asm("    ADD A,B");
                 asm("    LD HL,("asm_rle")");
                 asm("    LD (HL),C");
