@@ -350,9 +350,6 @@ start = gettime();
             asm("    POP BC"); // Balance the stack
             asm("    POP BC"); // Balance the stack
             // ang1Start += SCALEVALUE;
-            asm("    LD IX,41720");
-            asm("    ADD IX,HL");
-            asm("    LD BC,41720");
             asm("    LD BC,41720");
             asm("    LD HL,(_ang1Start)");
             asm("    ADD HL,BC");
