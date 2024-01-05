@@ -25,14 +25,10 @@
 #define SCALEVALUE (4*(int)((CURVESTEP * (1<<SINTABLEPOWER)) / (2*PI)))
 
 // From main.src
-#define asm_rle "IX-11"
-#define asm_ptr "IX-15"
-#define asm_len "IX-12"
-
-#define asm_u "IX-27"
-#define asm_v "IX-18"
-#define asm_ang1 "IX-21"
-#define asm_ang2 "IX-24"
+#define asm_u "IX-17"
+#define asm_v "IX-20"
+#define asm_ang1 "IX-11"
+#define asm_ang2 "IX-14"
 
 
 
@@ -302,6 +298,7 @@ void createRLEbuffers()
 volatile int ang1Start;
 volatile int ang2Start;
 volatile char j;
+volatile unsigned char* rle;
 
 int main(void)
 {
@@ -313,9 +310,6 @@ int main(void)
     volatile int ang2;
     volatile int u;
     volatile int v;
-    volatile unsigned char len;
-    volatile char* ptr;
-    volatile unsigned char* rle;
 
     clearallbuffers();
     selectbufferforbitmap(BITMAPBUFFER);
@@ -411,10 +405,13 @@ start = gettime();
             ang2Start += RVALUE;
         }
 
-        ptr = bitmap;
-        rle = rleData;
+        //rle = rleData;
+        asm("    PUSH IX"); // Store current IX
+        asm("    LD IX,B0006h");
 
-        asm("    LD IY,("asm_ptr")");
+        //ptr = bitmap;
+        asm("    LD IY,60000h");
+
         // while (1)
         {
             asm("RLE_Loop:");
@@ -426,7 +423,7 @@ start = gettime();
 
             {
                 //len = 0;
-                asm("    LD ("asm_len"),%0");
+                asm("    LD D,%0");
 
                 // if (*(unsigned int*)ptr == 0)
                 asm("    LD BC,0");
@@ -435,10 +432,10 @@ start = gettime();
                 asm("    JR NZ,RLE_Not3Black");
 
                 {
+                    asm("    LD A,D");
+
                     // do
                     {
-                        asm("    LD A,("asm_len")");
-
                         asm("RLE_CountBlack3Loop:");
 
                         // ptr += 3;
@@ -461,24 +458,22 @@ start = gettime();
 
                     // --len;
                     asm("    DEC A");
-                    asm("    LD ("asm_len"),A");
+                    asm("    LD D,A");
                 }
 
                 asm("RLE_Not3Black:");
 
                 // while (*++ptr == 0 && ++len < 255) {}
-                asm("    LD B,("asm_len")");
                 asm("RLE_CountBlack1Loop:");
                 asm("    INC IY");
                 asm("    LD A,(IY)");
                 asm("    OR A,A");
                 asm("    JR NZ,RLE_CountBlack1End");
-                asm("    INC B");
-                asm("    LD A,B");
+                asm("    INC D");
+                asm("    LD A,D");
                 asm("    CP A,%FF");
                 asm("    JR C,RLE_CountBlack1Loop");
                 asm("RLE_CountBlack1End:");
-                asm("    LD ("asm_len"),B");
 
                 {
                      // col = *ptr;
@@ -496,17 +491,14 @@ start = gettime();
                         asm("    INC IY");
 
                         // *rle = len;
-                        asm("    LD HL,("asm_rle")");
-                        asm("    LD B,("asm_len")");
-                        asm("    LD	(HL),B");
+                        asm("    LD	(IX),D");
 
                         // *(rle+1) = col;
-                        asm("    INC HL");
-                        asm("    LD (HL),A");
+                        asm("    INC IX");
+                        asm("    LD (IX),A");
 
                         // rle += 2;
-                        asm("    INC HL");
-                        asm("    LD ("asm_rle"),HL");
+                        asm("    INC IX");
 
                         asm("    JR RLE_Loop");
                     }
@@ -518,18 +510,14 @@ start = gettime();
                         asm("    LD (IY),%FF");
 
                         //*rle = len;
-                        asm("    LD HL,("asm_rle")");
-                        asm("    LD A,("asm_len")");
-                        asm("    LD (HL),A");
+                        asm("    LD (IX),D");
 
                         //*(rle+1) = 0;
-                        asm("    LD HL,("asm_rle")");
-                        asm("    INC HL");
-                        asm("    LD (HL),%0");
+                        asm("    INC IX");
+                        asm("    LD (IX),%0");
 
                         //rle += 2;
-                        asm("    INC HL");
-                        asm("    LD ("asm_rle"),HL");
+                        asm("    INC IX");
 
                         //break;
                         asm("    JR RLE_End");
@@ -544,14 +532,12 @@ start = gettime();
                 asm("    LD BC,(IY)");
                 asm("    LD A,20h");
                 asm("    ADD A,B");
-                asm("    LD HL,("asm_rle")");
-                asm("    LD (HL),C");
-                asm("    INC HL");
-                asm("    LD (HL),A");
+                asm("    LD (IX),C");
+                asm("    INC IX");
+                asm("    LD (IX),A");
 
 //                rle += 2;
-                asm("    INC HL");
-                asm("    LD ("asm_rle"),HL");
+                asm("    INC IX");
 
                 // *(unsigned short*)ptr = 0;
                 asm("    LD (IY),%0");
@@ -565,6 +551,8 @@ start = gettime();
             }
         }
         asm("RLE_End:");
+        asm("    LD (_rle),IX");
+        asm("    POP IX"); // Restore IX
 
         *(unsigned short*)rle = 0xFFFF;
 
