@@ -123,7 +123,10 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 
 #define innerloop(colIndex) \
 { \
-    for (j = ITERATIONS/4 - 1; j >= 0; --j) \
+    asm("    LD A,%40"); \
+    asm("InnerLoop"#colIndex":"); \
+\
+    /* for (j = ITERATIONS/4 - 1; j >= 0; --j) */ \
     { \
         /* ang2 = ang2Start + u; */ \
         asm("    POP BC"); \
@@ -172,6 +175,8 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
         asm("    ADD HL,BC"); \
         asm("    LD (HL),%"#colIndex); \
     } \
+    asm("    DEC A"); \
+    asm("    JR NZ,InnerLoop"#colIndex); \
 }
 
 #define sintable ((long*)0x4C000) // 0x4C000 - 0x5FFFF
@@ -297,7 +302,6 @@ void createRLEbuffers()
 
 volatile int ang1Start;
 volatile int ang2Start;
-volatile char j;
 volatile unsigned char* rle;
 
 int main(void)
