@@ -24,12 +24,6 @@
 #define RVALUE (4*(int)((CURVESTEP * (1<<SINTABLEPOWER)) / 235))
 #define SCALEVALUE (4*(int)((CURVESTEP * (1<<SINTABLEPOWER)) / (2*PI)))
 
-// From main.src
-#define asm_u "IX-17"
-#define asm_v "IX-20"
-#define asm_ang1 "IX-11"
-#define asm_ang2 "IX-14"
-
 
 
 static char waitForVSYNCBuffer[3] = {23, 0, 0xc3};
@@ -310,10 +304,6 @@ int main(void)
 
     int t;
     char i;
-    volatile int ang1;
-    volatile int ang2;
-    volatile int u;
-    volatile int v;
 
     clearallbuffers();
     selectbufferforbitmap(BITMAPBUFFER);
@@ -339,12 +329,15 @@ start = gettime();
 
         // Pre-load some constants into registers
         asm("    LD	DE,50000h");
-        asm("    EXX");
+        asm("    EXX"); // Switch to alt registers
         asm("    LD	BC,-16384");
         asm("    LD DE,78000h");
-        asm("    EXX");
+        asm("    EXX"); // Switch back to standard registers
 
-        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
+        asm("    LD A,%10");
+        asm("OuterLoop1:");
+        asm("    EX AF,AF'"); // Switch A registers
+        // for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
             asm("    PUSH IX"); // Store current IX
             asm("    LD BC,0");
@@ -360,7 +353,14 @@ start = gettime();
             ang1Start += SCALEVALUE;
             ang2Start += RVALUE;
         }
-        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
+        asm("    EX AF,AF'"); // Switch A registers
+        asm("    DEC A");
+        asm("    JR NZ,OuterLoop1");
+
+        asm("    LD A,%10"); // A' (Alt register)
+        asm("OuterLoop2:");
+        asm("    EX AF,AF'"); // Switch A registers
+        //        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
             asm("    PUSH IX"); // Store current IX
             asm("    LD BC,0");
@@ -376,7 +376,14 @@ start = gettime();
             ang1Start += SCALEVALUE;
             ang2Start += RVALUE;
         }
-        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
+        asm("    EX AF,AF'"); // Switch A registers
+        asm("    DEC A");
+        asm("    JR NZ,OuterLoop2");
+
+        asm("    LD A,%10"); // A' (Alt register)
+        asm("OuterLoop3:");
+        asm("    EX AF,AF'"); // Switch A registers
+        //        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
             asm("    PUSH IX"); // Store current IX
             asm("    LD BC,0");
@@ -392,7 +399,14 @@ start = gettime();
             ang1Start += SCALEVALUE;
             ang2Start += RVALUE;
         }
-        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
+        asm("    EX AF,AF'"); // Switch A registers
+        asm("    DEC A");
+        asm("    JR NZ,OuterLoop3");
+
+        asm("    LD A,%10"); // A' (Alt register)
+        asm("OuterLoop4:");
+        asm("    EX AF,AF'"); // Switch A registers
+        //        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
             asm("    PUSH IX"); // Store current IX
             asm("    LD BC,0");
@@ -408,6 +422,9 @@ start = gettime();
             ang1Start += SCALEVALUE;
             ang2Start += RVALUE;
         }
+        asm("    EX AF,AF'"); // Switch A registers
+        asm("    DEC A");
+        asm("    JR NZ,OuterLoop4");
 
         //rle = rleData;
         asm("    PUSH IX"); // Store current IX
