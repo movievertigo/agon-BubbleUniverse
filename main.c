@@ -303,7 +303,6 @@ int main(void)
     long start = gettime();
 
     int t;
-    char i;
 
     clearallbuffers();
     selectbufferforbitmap(BITMAPBUFFER);
@@ -327,6 +326,8 @@ start = gettime();
         ang1Start = t;
         ang2Start = t;
 
+        asm("    PUSH IX"); // Store current IX
+
         // Pre-load some constants into registers
         asm("    LD	DE,50000h");
         asm("    EXX"); // Switch to alt registers
@@ -339,7 +340,6 @@ start = gettime();
         asm("    EX AF,AF'"); // Switch A registers
         // for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
-            asm("    PUSH IX"); // Store current IX
             asm("    LD BC,0");
             asm("    PUSH BC"); // v = 0
             asm("    PUSH BC"); // u = 0
@@ -349,9 +349,19 @@ start = gettime();
             innerloop(4);
             asm("    POP BC"); // Balance the stack
             asm("    POP BC"); // Balance the stack
-            asm("    POP IX"); // Restore IX
-            ang1Start += SCALEVALUE;
-            ang2Start += RVALUE;
+            // ang1Start += SCALEVALUE;
+            asm("    LD IX,41720");
+            asm("    ADD IX,HL");
+            asm("    LD BC,41720");
+            asm("    LD BC,41720");
+            asm("    LD HL,(_ang1Start)");
+            asm("    ADD HL,BC");
+            asm("    LD (_ang1Start),HL");
+                // ang2Start += RVALUE;
+            asm("    LD BC,1112");
+            asm("    LD HL,(_ang2Start)");
+            asm("    ADD HL,BC");
+            asm("    LD (_ang2Start),HL");
         }
         asm("    EX AF,AF'"); // Switch A registers
         asm("    DEC A");
@@ -362,7 +372,6 @@ start = gettime();
         asm("    EX AF,AF'"); // Switch A registers
         //        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
-            asm("    PUSH IX"); // Store current IX
             asm("    LD BC,0");
             asm("    PUSH BC"); // v = 0
             asm("    PUSH BC"); // u = 0
@@ -372,9 +381,16 @@ start = gettime();
             innerloop(8);
             asm("    POP BC"); // Balance the stack
             asm("    POP BC"); // Balance the stack
-            asm("    POP IX"); // Restore IX
-            ang1Start += SCALEVALUE;
-            ang2Start += RVALUE;
+            // ang1Start += SCALEVALUE;
+            asm("    LD BC,41720");
+            asm("    LD HL,(_ang1Start)");
+            asm("    ADD HL,BC");
+            asm("    LD (_ang1Start),HL");
+                // ang2Start += RVALUE;
+            asm("    LD BC,1112");
+            asm("    LD HL,(_ang2Start)");
+            asm("    ADD HL,BC");
+            asm("    LD (_ang2Start),HL");
         }
         asm("    EX AF,AF'"); // Switch A registers
         asm("    DEC A");
@@ -385,7 +401,6 @@ start = gettime();
         asm("    EX AF,AF'"); // Switch A registers
         //        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
-            asm("    PUSH IX"); // Store current IX
             asm("    LD BC,0");
             asm("    PUSH BC"); // v = 0
             asm("    PUSH BC"); // u = 0
@@ -395,9 +410,16 @@ start = gettime();
             innerloop(C);
             asm("    POP BC"); // Balance the stack
             asm("    POP BC"); // Balance the stack
-            asm("    POP IX"); // Restore IX
-            ang1Start += SCALEVALUE;
-            ang2Start += RVALUE;
+            // ang1Start += SCALEVALUE;
+            asm("    LD BC,41720");
+            asm("    LD HL,(_ang1Start)");
+            asm("    ADD HL,BC");
+            asm("    LD (_ang1Start),HL");
+                // ang2Start += RVALUE;
+            asm("    LD BC,1112");
+            asm("    LD HL,(_ang2Start)");
+            asm("    ADD HL,BC");
+            asm("    LD (_ang2Start),HL");
         }
         asm("    EX AF,AF'"); // Switch A registers
         asm("    DEC A");
@@ -408,7 +430,6 @@ start = gettime();
         asm("    EX AF,AF'"); // Switch A registers
         //        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
-            asm("    PUSH IX"); // Store current IX
             asm("    LD BC,0");
             asm("    PUSH BC"); // u = 0
             asm("    PUSH BC"); // u = 0
@@ -418,16 +439,22 @@ start = gettime();
             innerloop(10);
             asm("    POP BC"); // Balance the stack
             asm("    POP BC"); // Balance the stack
-            asm("    POP IX"); // Restore IX
-            ang1Start += SCALEVALUE;
-            ang2Start += RVALUE;
+            // ang1Start += SCALEVALUE;
+            asm("    LD BC,41720");
+            asm("    LD HL,(_ang1Start)");
+            asm("    ADD HL,BC");
+            asm("    LD (_ang1Start),HL");
+                // ang2Start += RVALUE;
+            asm("    LD BC,1112");
+            asm("    LD HL,(_ang2Start)");
+            asm("    ADD HL,BC");
+            asm("    LD (_ang2Start),HL");
         }
         asm("    EX AF,AF'"); // Switch A registers
         asm("    DEC A");
         asm("    JR NZ,OuterLoop4");
 
         //rle = rleData;
-        asm("    PUSH IX"); // Store current IX
         asm("    LD IX,B0006h");
 
         //ptr = bitmap;
