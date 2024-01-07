@@ -317,9 +317,9 @@ printnum(gettime()-start); vdp_sendstring("\n\r");
 
 start = gettime();
 
-    while (getlastkey() != 125 && t < 400*4)
+    while (getlastkey() != 125 /*&& t < 400*16*/)
     {
-//        start = gettime();
+        start = gettime();
 
         ang1Start = t;
         ang2Start = t;
@@ -476,6 +476,7 @@ start = gettime();
 
                 {
                     asm("    LD A,E");
+                    asm("    INC A");
 
                     // do
                     {
@@ -485,14 +486,15 @@ start = gettime();
                         asm("    LEA IY,IY+%3");
 
                         // len += 3;
-                        asm("    ADD A,%3");
+                        asm("    ADD A,%2"); // We've already incremented by one for the condition check so only add 2
                     }
                     // while (*(unsigned int*)ptr == 0 && len < 255);
                     asm("    LD HL,(IY)");
                     asm("    SBC HL,BC"); // BC Was set to zero before we started the loop
                     asm("    JR NZ,RLE_CountBlack3End");
-                    asm("    CP A,%FF");
-                    asm("    JR C,RLE_CountBlack3Loop");
+                    asm("    INC A"); // Instead of CP A,%FF
+                    asm("    JR NZ,RLE_CountBlack3Loop");
+                    asm("    DEC A"); // Compensate for the INC above
                     asm("RLE_CountBlack3End:");
 
                     // --len;
@@ -514,16 +516,17 @@ start = gettime();
                 asm("    JR NZ,RLE_CountBlack1End");
                 asm("    INC E");
                 asm("    LD A,E");
-                asm("    CP A,%FF");
-                asm("    JR C,RLE_CountBlack1Loop");
+                asm("    INC A"); // Instead of CP A,%FF
+                asm("    JR NZ,RLE_CountBlack1Loop");
                 asm("RLE_CountBlack1End:");
 
                 {
-                     // col = *ptr;
-                    asm("    LD A,(IY)");
+                    // col = *ptr;
+                    asm("    LD D,(IY)");
 
                     // if (col != 255)
-                    asm("    CP A,%FF");
+                    asm("    LD A,D");
+                    asm("    INC A");
                     asm("    JR	Z,RLE_LastRun");
 
                     {
@@ -535,7 +538,6 @@ start = gettime();
 
                         // *rle = len;
                         // *(rle+1) = col;
-                        asm("    LD D,A");
                         asm("    LD	(IX),DE"); // The high (3rd) byte gets written but doesn't affect anything
 
                         // rle += 2;
@@ -595,7 +597,7 @@ start = gettime();
 
         t += 40*4; // ENSURE THIS IS A MULTIPLE OF 4
 
-//        printnum(gettime()-start); vdp_sendstring("\r");
+        printnum(gettime()-start); vdp_sendstring("\r");
     }
 printnum(gettime()-start); vdp_sendstring("\n\r");
 
