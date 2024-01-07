@@ -124,11 +124,11 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
     { \
         /* ang2 = ang2Start + u; */ \
         asm("    POP BC"); \
-        asm("    LD IX,(_ang2Start)"); \
-        asm("    ADD.s IX,BC"); \
+        asm("    LD HL,(_ang2Start)"); \
+        asm("    ADD.s HL,BC"); \
 \
         /* *(((char*)&ang2)+2) = (char)costable>>16; */ \
-        asm("    ADD IX,DE"); \
+        asm("    ADD HL,DE"); \
 \
         /* ang1 = ang1Start + v; */ \
         asm("    POP BC"); \
@@ -140,30 +140,28 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 \
         /* v = *(int*)ang1 + *(int*)ang2; */ \
         asm("    LD BC,(IY)"); \
-        asm("    LD HL,(IX)"); \
-        asm("    ADD HL,BC"); \
-        asm("    PUSH HL"); \
+        asm("    LD IX,(HL)"); \
+        asm("    ADD IX,BC"); \
+        asm("    PUSH IX"); \
 \
         /* u = *(int*)(ang1-SINTABLEENTRIES) + *(int*)(ang2-SINTABLEENTRIES); */ \
-        asm("    EXX"); /* Switch to alt registers to get other constants */ \
+        asm("    LD	BC,-16384"); \
         asm("    ADD IY,BC"); /* BC' */ \
-        asm("    ADD IX,BC"); /* BC' */ \
-        asm("    EXX"); /* Switch back to standard registers */ \
+        asm("    ADD HL,BC"); /* BC' */ \
         asm("    LD BC,(IY)"); \
-        asm("    LD IY,(IX)"); \
+        asm("    LD IY,(HL)"); \
         asm("    ADD IY,BC"); \
         asm("    PUSH IY"); \
 \
         /* *(unsigned char*)(scaleYTable[v] + scaleXTable[u]) = colIndex; */ \
+        asm("    LD BC,IX"); \
+        asm("    ADD IX,IX"); \
+        asm("    ADD IX,BC"); \
         asm("    EXX"); /* Switch to alt registers to get other constants */ \
-        asm("    ADD IY,DE"); /* DE' */ \
+        asm("    ADD IX,BC"); /* BC' 98000h scaleYTable */ \
+        asm("    ADD IY,DE"); /* DE' 78000h scaleXTable */ \
         asm("    EXX"); /* Switch back to standard registers */ \
-        asm("    LD BC,HL"); \
-        asm("    ADD HL,HL"); \
-        asm("    ADD HL,BC"); \
-        asm("    LD BC,98000h"); \
-        asm("    ADD HL,BC"); \
-        asm("    LD BC,(HL)"); \
+        asm("    LD BC,(IX)"); \
         asm("    UEXT HL"); \
         asm("    LD L,(IY)"); \
         asm("    ADD HL,BC"); \
@@ -331,7 +329,7 @@ start = gettime();
         // Pre-load some constants into registers
         asm("    LD	DE,50000h");
         asm("    EXX"); // Switch to alt registers
-        asm("    LD	BC,-16384");
+        asm("    LD BC,98000h");
         asm("    LD DE,78000h");
         asm("    EXX"); // Switch back to standard registers
 
