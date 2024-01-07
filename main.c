@@ -490,9 +490,8 @@ start = gettime();
                         asm("    ADD A,%3");
                     }
                     // while (*(unsigned int*)ptr == 0 && len < 255);
-                    asm("    LD BC,0");
                     asm("    LD HL,(IY)");
-                    asm("    SBC HL,BC");
+                    asm("    SBC HL,BC"); // BC Was set to zero before we started the loop
                     asm("    JR NZ,RLE_CountBlack3End");
                     asm("    CP A,%FF");
                     asm("    JR C,RLE_CountBlack3Loop");
