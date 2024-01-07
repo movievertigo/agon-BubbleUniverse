@@ -184,7 +184,7 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 #define rleHeader ((char*)0xB0000) // 0xB0000 - max length of RLE data
 #define rleData ((char*)(rleHeader+6))
 
-#define scaleDiv 174
+#define scaleDiv 176
 void generatescaletables()
 {
     int i, step = 0, xv = -32768 / scaleDiv + HEIGHT/2, yv = (int)bitmap + xv * HEIGHT;
