@@ -468,7 +468,7 @@ start = gettime();
 
             {
                 //len = 0;
-                asm("    LD D,%0");
+                asm("    LD E,%0");
 
                 // if (*(unsigned int*)ptr == 0)
                 asm("    LD BC,0");
@@ -477,7 +477,7 @@ start = gettime();
                 asm("    JR NZ,RLE_Not3Black");
 
                 {
-                    asm("    LD A,D");
+                    asm("    LD A,E");
 
                     // do
                     {
@@ -498,12 +498,12 @@ start = gettime();
                     asm("    JR C,RLE_CountBlack3Loop");
                     asm("RLE_CountBlack3End:");
 
-                    // --ptr;
-                    asm("    DEC IY");
-
                     // --len;
-                    asm("    DEC A");
-                    asm("    LD D,A");
+                    asm("    LD E,A");
+                    asm("    DEC E");
+
+                    // Skip "decrementing then incrementing";
+                    asm("    JR RLE_From3Black");
                 }
 
                 asm("RLE_Not3Black:");
@@ -511,11 +511,12 @@ start = gettime();
                 // while (*++ptr == 0 && ++len < 255) {}
                 asm("RLE_CountBlack1Loop:");
                 asm("    INC IY");
+                asm("RLE_From3Black:");
                 asm("    LD A,(IY)");
                 asm("    OR A,A");
                 asm("    JR NZ,RLE_CountBlack1End");
-                asm("    INC D");
-                asm("    LD A,D");
+                asm("    INC E");
+                asm("    LD A,E");
                 asm("    CP A,%FF");
                 asm("    JR C,RLE_CountBlack1Loop");
                 asm("RLE_CountBlack1End:");
@@ -524,26 +525,24 @@ start = gettime();
                      // col = *ptr;
                     asm("    LD A,(IY)");
 
-                    // *ptr = 0;
-                    asm("    LD (IY),%0");
-
                     // if (col != 255)
                     asm("    CP A,%FF");
                     asm("    JR	Z,RLE_LastRun");
 
                     {
+                        // *ptr = 0;
+                        asm("    LD (IY),%0");
+
                         // ++ptr;
                         asm("    INC IY");
 
                         // *rle = len;
-                        asm("    LD	(IX),D");
-
                         // *(rle+1) = col;
-                        asm("    INC IX");
-                        asm("    LD (IX),A");
+                        asm("    LD D,A");
+                        asm("    LD	(IX),DE"); // The high (3rd) byte gets written but doesn't affect anything
 
                         // rle += 2;
-                        asm("    INC IX");
+                        asm("    LEA IX,IX+%2");
 
                         asm("    JR RLE_Loop");
                     }
@@ -551,18 +550,13 @@ start = gettime();
                     {
                         asm("RLE_LastRun:");
 
-                        // *ptr = 255;
-                        asm("    LD (IY),%FF");
-
                         //*rle = len;
-                        asm("    LD (IX),D");
-
                         //*(rle+1) = 0;
-                        asm("    INC IX");
-                        asm("    LD (IX),%0");
+                        asm("    LD D,%0");
+                        asm("    LD	(IX),DE"); // The high (3rd) byte gets written but doesn't affect anything
 
                         //rle += 2;
-                        asm("    INC IX");
+                        asm("    LEA IX,IX+%2");
 
                         //break;
                         asm("    JR RLE_End");
@@ -575,22 +569,20 @@ start = gettime();
 
 //                *(unsigned short*)rle = 0x2000 + *(unsigned short*)ptr;
                 asm("    LD BC,(IY)");
-                asm("    LD A,20h");
+                asm("    LD A,%20");
                 asm("    ADD A,B");
-                asm("    LD (IX),C");
-                asm("    INC IX");
-                asm("    LD (IX),A");
+                asm("    LD B,A");
+                asm("    LD (IX),BC"); // The high (3rd) byte gets written but doesn't affect anything
 
 //                rle += 2;
-                asm("    INC IX");
+                asm("    LEA IX,IX+%2");
 
                 // *(unsigned short*)ptr = 0;
                 asm("    LD (IY),%0");
-                asm("    INC IY");
-                asm("    LD (IY),%0");
+                asm("    LD (IY+1),%0");
 
                 // ptr += 2;
-                asm("    INC IY");
+                asm("    LEA IY,IY+%2");
 
                 asm("    JR RLE_Loop");
             }
