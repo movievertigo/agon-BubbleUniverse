@@ -317,9 +317,9 @@ printnum(gettime()-start); vdp_sendstring("\n\r");
 
 start = gettime();
 
-    while (getlastkey() != 125 /*&& t < 400*16*/)
+    while (getlastkey() != 125 && t < 400*16)
     {
-        start = gettime();
+//        start = gettime();
 
         ang1Start = t;
         ang2Start = t;
@@ -468,6 +468,8 @@ start = gettime();
                 //len = 0;
                 asm("    LD E,%0");
 
+                asm("    LD D,%3");
+
                 // if (*(unsigned int*)ptr == 0)
                 asm("    LD BC,0");
                 asm("    LD HL,(IY)");
@@ -484,22 +486,20 @@ start = gettime();
 
                         // ptr += 3;
                         asm("    LEA IY,IY+%3");
-
-                        // len += 3;
-                        asm("    ADD A,%2"); // We've already incremented by one for the condition check so only add 2
                     }
                     // while (*(unsigned int*)ptr == 0 && len < 255);
                     asm("    LD HL,(IY)");
                     asm("    SBC HL,BC"); // BC Was set to zero before we started the loop
                     asm("    JR NZ,RLE_CountBlack3End");
-                    asm("    INC A"); // Instead of CP A,%FF
+                    // len += 3;
+                    asm("    ADD A,D");
                     asm("    JR NZ,RLE_CountBlack3Loop");
-                    asm("    DEC A"); // Compensate for the INC above
+                    asm("    SUB A,D");
                     asm("RLE_CountBlack3End:");
 
-                    // --len;
+                    // --len; (INC at start then SUB 3 above then INC below equals -1)
+                    asm("    INC A");
                     asm("    LD E,A");
-                    asm("    DEC E");
 
                     // Skip "decrementing then incrementing";
                     asm("    JR RLE_From3Black");
@@ -597,7 +597,7 @@ start = gettime();
 
         t += 40*4; // ENSURE THIS IS A MULTIPLE OF 4
 
-        printnum(gettime()-start); vdp_sendstring("\r");
+//        printnum(gettime()-start); vdp_sendstring("\r");
     }
 printnum(gettime()-start); vdp_sendstring("\n\r");
 
