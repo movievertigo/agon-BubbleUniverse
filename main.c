@@ -155,8 +155,8 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 \
         /* *(unsigned char*)(scaleYTable[v] + scaleXTable[u]) = colIndex; */ \
         asm("    EXX"); /* Switch to alt registers to get other constants */ \
-        asm("    ADD IX,DE"); /* DE' 78000h scaleYTable */ \
-        asm("    ADD IY,DE"); /* DE' 78000h scaleXTable */ \
+        asm("    ADD IX,DE"); /* DE' 78000h scaleTable */ \
+        asm("    ADD IY,DE"); /* DE' 78000h scaleTable */ \
         asm("    EXX"); /* Switch back to standard registers */ \
         asm("    LD BC,(IX+1)"); \
         asm("    UEXT HL"); \
