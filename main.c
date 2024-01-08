@@ -146,19 +146,16 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 \
         /* u = *(int*)(ang1-SINTABLEENTRIES) + *(int*)(ang2-SINTABLEENTRIES); */ \
         asm("    LD	BC,-16384"); \
-        asm("    ADD IY,BC"); /* BC' */ \
-        asm("    ADD HL,BC"); /* BC' */ \
+        asm("    ADD IY,BC"); \
+        asm("    ADD HL,BC"); \
         asm("    LD BC,(IY)"); \
         asm("    LD IY,(HL)"); \
         asm("    ADD IY,BC"); \
         asm("    PUSH IY"); \
 \
         /* *(unsigned char*)(scaleYTable[v] + scaleXTable[u]) = colIndex; */ \
-        asm("    LD BC,IX"); \
-        asm("    ADD IX,IX"); \
-        asm("    ADD IX,BC"); \
         asm("    EXX"); /* Switch to alt registers to get other constants */ \
-        asm("    ADD IX,BC"); /* BC' 98000h scaleYTable */ \
+        asm("    ADD IX,BC"); /* BC' 88000h scaleYTable */ \
         asm("    ADD IY,DE"); /* DE' 78000h scaleXTable */ \
         asm("    EXX"); /* Switch back to standard registers */ \
         asm("    LD BC,(IX)"); \
@@ -179,7 +176,7 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 #define bitmapEnd ((char*)(bitmap+HEIGHT*HEIGHT))
 
 #define scaleXTable ((unsigned char*)0x78000) // 0x70000 - 0x7FFFF
-#define scaleYTable ((unsigned int*)0x98000) // 0x80000 - 0xAFFFF
+#define scaleYTable ((unsigned long*)0x88000) // 0x80000 - 0x8FFFF
 
 #define rleHeader ((char*)0xB0000) // 0xB0000 - max length of RLE data
 #define rleData ((char*)(rleHeader+6))
@@ -187,15 +184,22 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 #define scaleDiv 176
 void generatescaletables()
 {
-    int i, step = 0, xv = -32768 / scaleDiv + HEIGHT/2, yv = (int)bitmap + xv * HEIGHT;
-    for (i = -32768; i < 32768; ++i)
+    int i, step, xv = -32768 / scaleDiv + HEIGHT/2, yv = (long)bitmap + (-8192 / (scaleDiv/4) + HEIGHT/2) * HEIGHT;
+    for (step = 0, i = -32768; i < 32768; ++i)
     {
         scaleXTable[i] = xv;
-        scaleYTable[i] = yv;
         if (++step == scaleDiv)
         {
             step = 0;
             ++xv;
+        }
+    }
+    for (step = 0, i = -8192; i < 8192; ++i)
+    {
+        scaleYTable[i] = yv;
+        if (++step == (scaleDiv/4))
+        {
+            step = 0;
             yv += HEIGHT;
         }
     }
@@ -329,7 +333,7 @@ start = gettime();
         // Pre-load some constants into registers
         asm("    LD	DE,50000h");
         asm("    EXX"); // Switch to alt registers
-        asm("    LD BC,98000h");
+        asm("    LD BC,88000h");
         asm("    LD DE,78000h");
         asm("    EXX"); // Switch back to standard registers
 
