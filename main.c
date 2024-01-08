@@ -155,10 +155,10 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 \
         /* *(unsigned char*)(scaleYTable[v] + scaleXTable[u]) = colIndex; */ \
         asm("    EXX"); /* Switch to alt registers to get other constants */ \
-        asm("    ADD IX,BC"); /* BC' 88000h scaleYTable */ \
+        asm("    ADD IX,DE"); /* DE' 78000h scaleYTable */ \
         asm("    ADD IY,DE"); /* DE' 78000h scaleXTable */ \
         asm("    EXX"); /* Switch back to standard registers */ \
-        asm("    LD BC,(IX)"); \
+        asm("    LD BC,(IX+1)"); \
         asm("    UEXT HL"); \
         asm("    LD L,(IY)"); \
         asm("    ADD HL,BC"); \
@@ -175,8 +175,7 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 #define bitmapCentre ((char*)(bitmap+(HEIGHT+1)*HEIGHT/2))
 #define bitmapEnd ((char*)(bitmap+HEIGHT*HEIGHT))
 
-#define scaleXTable ((unsigned char*)0x78000) // 0x70000 - 0x7FFFF
-#define scaleYTable ((unsigned long*)0x88000) // 0x80000 - 0x8FFFF
+#define scaleTable ((unsigned char*)0x78000) // 0x70000 - 0x7FFFF
 
 #define rleHeader ((char*)0xB0000) // 0xB0000 - max length of RLE data
 #define rleData ((char*)(rleHeader+6))
@@ -185,21 +184,14 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 void generatescaletables()
 {
     int i, step, xv = -32768 / scaleDiv + HEIGHT/2, yv = (long)bitmap + (-8192 / (scaleDiv/4) + HEIGHT/2) * HEIGHT;
-    for (step = 0, i = -32768; i < 32768; ++i)
+    for (step = 0, i = -32768; i < 32768; i += 4)
     {
-        scaleXTable[i] = xv;
-        if (++step == scaleDiv)
+        scaleTable[i] = xv;
+        *(int*)(scaleTable + i + 1) = yv;
+        if (++step == scaleDiv/4)
         {
             step = 0;
             ++xv;
-        }
-    }
-    for (step = 0, i = -8192; i < 8192; ++i)
-    {
-        scaleYTable[i] = yv;
-        if (++step == (scaleDiv/4))
-        {
-            step = 0;
             yv += HEIGHT;
         }
     }
@@ -333,7 +325,6 @@ start = gettime();
         // Pre-load some constants into registers
         asm("    LD	DE,50000h");
         asm("    EXX"); // Switch to alt registers
-        asm("    LD BC,88000h");
         asm("    LD DE,78000h");
         asm("    EXX"); // Switch back to standard registers
 
