@@ -145,9 +145,8 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
         asm("    PUSH IX"); \
 \
         /* u = *(int*)(ang1-SINTABLEENTRIES) + *(int*)(ang2-SINTABLEENTRIES); */ \
-        asm("    LD	BC,-16384"); \
-        asm("    ADD IY,BC"); \
-        asm("    ADD HL,BC"); \
+        asm("    ADD IY,DE"); \
+        asm("    ADD HL,DE"); \
         asm("    LD BC,(IY)"); \
         asm("    LD IY,(HL)"); \
         asm("    ADD IY,BC"); \
@@ -168,8 +167,8 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
     asm("    JR NZ,InnerLoop"#colIndex); \
 }
 
-#define sintable ((long*)0x4C000) // 0x4C000 - 0x5FFFF
-#define costable ((long*)(((char*)sintable)+SINTABLEENTRIES))
+#define costable ((long*)0x50000) // 0x50000 - 0x5FFFF
+#define sintable ((long*)(((int)costable)*2)) // 0xA0000 - 0xAFFFF
 
 #define bitmap ((char*)0x60000) // 0x60000 - 0x6FFFF
 #define bitmapCentre ((char*)(bitmap+(HEIGHT+1)*HEIGHT/2))
@@ -202,8 +201,10 @@ void expandsintable()
     int i;
     for (i = 0; i < SINTABLEENTRIES/4; ++i)
     {
-        sintable[i] = sintable[SINTABLEENTRIES/2 - i - 1] = sintable[SINTABLEENTRIES + i] = compactsintable[i];
+        sintable[i] = sintable[SINTABLEENTRIES/2 - i - 1] = compactsintable[i];
         sintable[SINTABLEENTRIES/2 + i] = sintable[SINTABLEENTRIES - i - 1] = -compactsintable[i];
+        costable[3*SINTABLEENTRIES/4 +i] = costable[SINTABLEENTRIES/4 - i - 1] = compactsintable[i];
+        costable[SINTABLEENTRIES/4 + i] = costable[3*SINTABLEENTRIES/4 - i - 1] = -compactsintable[i];
     }
 }
 
