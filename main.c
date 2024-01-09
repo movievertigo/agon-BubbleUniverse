@@ -153,10 +153,6 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
         asm("    PUSH IY"); \
 \
         /* *(unsigned char*)(scaleYTable[v] + scaleXTable[u]) = colIndex; */ \
-        asm("    EXX"); /* Switch to alt registers to get other constants */ \
-        asm("    ADD IX,DE"); /* DE' 78000h scaleTable */ \
-        asm("    ADD IY,DE"); /* DE' 78000h scaleTable */ \
-        asm("    EXX"); /* Switch back to standard registers */ \
         asm("    LD BC,(IX+1)"); \
         asm("    UEXT HL"); \
         asm("    LD L,(IY)"); \
@@ -168,13 +164,14 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 }
 
 #define costable ((long*)0x50000) // 0x50000 - 0x5FFFF
-#define sintable ((long*)(((int)costable)*2)) // 0xA0000 - 0xAFFFF
 
 #define bitmap ((char*)0x60000) // 0x60000 - 0x6FFFF
 #define bitmapCentre ((char*)(bitmap+(HEIGHT+1)*HEIGHT/2))
 #define bitmapEnd ((char*)(bitmap+HEIGHT*HEIGHT))
 
-#define scaleTable ((unsigned char*)0x78000) // 0x70000 - 0x7FFFF
+#define scaleTable ((unsigned char*)0x80000) // 0x78000 - 0x87FFF
+
+#define sintable ((long*)(((int)costable)*2)) // 0xA0000 - 0xAFFFF
 
 #define rleHeader ((char*)0xB0000) // 0xB0000 - max length of RLE data
 #define rleData ((char*)(rleHeader+6))
@@ -201,10 +198,10 @@ void expandsintable()
     int i;
     for (i = 0; i < SINTABLEENTRIES/4; ++i)
     {
-        sintable[i] = sintable[SINTABLEENTRIES/2 - i - 1] = compactsintable[i];
-        sintable[SINTABLEENTRIES/2 + i] = sintable[SINTABLEENTRIES - i - 1] = -compactsintable[i];
-        costable[3*SINTABLEENTRIES/4 +i] = costable[SINTABLEENTRIES/4 - i - 1] = compactsintable[i];
-        costable[SINTABLEENTRIES/4 + i] = costable[3*SINTABLEENTRIES/4 - i - 1] = -compactsintable[i];
+        sintable[i] = sintable[SINTABLEENTRIES/2 - i - 1] = compactsintable[i] + ((int)scaleTable/2);
+        sintable[SINTABLEENTRIES/2 + i] = sintable[SINTABLEENTRIES - i - 1] = -compactsintable[i] + ((int)scaleTable/2);
+        costable[3*SINTABLEENTRIES/4 +i] = costable[SINTABLEENTRIES/4 - i - 1] = compactsintable[i] + ((int)scaleTable/2);
+        costable[SINTABLEENTRIES/4 + i] = costable[3*SINTABLEENTRIES/4 - i - 1] = -compactsintable[i] + ((int)scaleTable/2);
     }
 }
 
@@ -314,9 +311,9 @@ printnum(gettime()-start); vdp_sendstring("\n\r");
 
 start = gettime();
 
-    while (getlastkey() != 125 && t < 400*16)
+    while (getlastkey() != 125 /*&& t < 400*16*/)
     {
-//        start = gettime();
+        start = gettime();
 
         ang1Start = t;
         ang2Start = t;
@@ -325,9 +322,6 @@ start = gettime();
 
         // Pre-load some constants into registers
         asm("    LD	DE,50000h");
-        asm("    EXX"); // Switch to alt registers
-        asm("    LD DE,78000h");
-        asm("    EXX"); // Switch back to standard registers
 
         asm("    LD A,%10");
         asm("OuterLoop1:");
@@ -593,7 +587,7 @@ start = gettime();
 
         t += 40*4; // ENSURE THIS IS A MULTIPLE OF 4
 
-//        printnum(gettime()-start); vdp_sendstring("\r");
+        printnum(gettime()-start); vdp_sendstring("\r");
     }
 printnum(gettime()-start); vdp_sendstring("\n\r");
 
