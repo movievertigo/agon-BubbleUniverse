@@ -123,9 +123,8 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
     /* for (j = ITERATIONS/4 - 1; j >= 0; --j) */ \
     { \
         /* ang2 = ang2Start + u; */ \
-        asm("    POP BC"); \
-        asm("    LD HL,(_ang2Start)"); \
-        asm("    ADD.s HL,BC"); \
+        asm("    POP HL"); /* u from stack */ \
+        asm("    ADD.s HL,SP"); /* ang2Start from SPS */\
 \
         /* *(((char*)&ang2)+2) = (char)costable>>16; */ \
         asm("    ADD HL,DE"); \
@@ -289,12 +288,11 @@ void createRLEbuffers()
 volatile int ang1Start;
 volatile int ang2Start;
 volatile unsigned char* rle;
+volatile int t;
 
 int main(void)
 {
     long start = gettime();
-
-    int t;
 
     clearallbuffers();
     selectbufferforbitmap(BITMAPBUFFER);
@@ -315,10 +313,12 @@ start = gettime();
     {
 //        start = gettime();
 
-        ang1Start = t;
-        ang2Start = t;
-
         asm("    PUSH IX"); // Store current IX
+
+        ang1Start = t;
+        // ang2Start = t;
+        asm("    LD HL,(_t)");
+        asm("    LD.s SP,HL");
 
         // Pre-load some constants into registers
         asm("    LD	DE,50000h");
@@ -343,10 +343,9 @@ start = gettime();
             asm("    ADD HL,BC");
             asm("    LD (_ang1Start),HL");
                 // ang2Start += RVALUE;
-            asm("    LD BC,1112");
-            asm("    LD HL,(_ang2Start)");
-            asm("    ADD HL,BC");
-            asm("    LD (_ang2Start),HL");
+            asm("    LD HL,1112");
+            asm("    ADD.s HL,SP");
+            asm("    LD.s SP,HL");
         }
         asm("    EX AF,AF'"); // Switch A registers
         asm("    DEC A");
@@ -372,10 +371,9 @@ start = gettime();
             asm("    ADD HL,BC");
             asm("    LD (_ang1Start),HL");
                 // ang2Start += RVALUE;
-            asm("    LD BC,1112");
-            asm("    LD HL,(_ang2Start)");
-            asm("    ADD HL,BC");
-            asm("    LD (_ang2Start),HL");
+            asm("    LD HL,1112");
+            asm("    ADD.s HL,SP");
+            asm("    LD.s SP,HL");
         }
         asm("    EX AF,AF'"); // Switch A registers
         asm("    DEC A");
@@ -401,10 +399,9 @@ start = gettime();
             asm("    ADD HL,BC");
             asm("    LD (_ang1Start),HL");
                 // ang2Start += RVALUE;
-            asm("    LD BC,1112");
-            asm("    LD HL,(_ang2Start)");
-            asm("    ADD HL,BC");
-            asm("    LD (_ang2Start),HL");
+            asm("    LD HL,1112");
+            asm("    ADD.s HL,SP");
+            asm("    LD.s SP,HL");
         }
         asm("    EX AF,AF'"); // Switch A registers
         asm("    DEC A");
@@ -430,10 +427,9 @@ start = gettime();
             asm("    ADD HL,BC");
             asm("    LD (_ang1Start),HL");
                 // ang2Start += RVALUE;
-            asm("    LD BC,1112");
-            asm("    LD HL,(_ang2Start)");
-            asm("    ADD HL,BC");
-            asm("    LD (_ang2Start),HL");
+            asm("    LD HL,1112");
+            asm("    ADD.s HL,SP");
+            asm("    LD.s SP,HL");
         }
         asm("    EX AF,AF'"); // Switch A registers
         asm("    DEC A");
