@@ -154,9 +154,9 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 \
         /* *(unsigned char*)(scaleYTable[v] + scaleXTable[u]) = colIndex; */ \
         asm("    LD BC,(IX+1)"); \
-        asm("    UEXT HL"); \
         asm("    LD L,(IY)"); \
-        asm("    ADD HL,BC"); \
+        asm("    LD H,E"); /* Assuming E is 0 as it's an address constant (quicker than LD H,%0) */ \
+        asm("    ADD HL,BC"); /* Top byte of HL isn't clear but we compensate with -sintable in the scale table */ \
         asm("    LD (HL),%"#colIndex); \
     } \
     asm("    DEC A"); \
@@ -179,7 +179,7 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 #define scaleDiv 176
 void generatescaletables()
 {
-    int i, step, xv = -32768 / scaleDiv + HEIGHT/2, yv = (long)bitmap + (-8192 / (scaleDiv/4) + HEIGHT/2) * HEIGHT;
+    int i, step, xv = -32768 / scaleDiv + HEIGHT/2, yv = (long)bitmap - (long)sintable + (-8192 / (scaleDiv/4) + HEIGHT/2) * HEIGHT;
     for (step = 0, i = -32768; i < 32768; i += 4)
     {
         scaleTable[i] = xv;
@@ -311,9 +311,9 @@ printnum(gettime()-start); vdp_sendstring("\n\r");
 
 start = gettime();
 
-    while (getlastkey() != 125 /*&& t < 400*16*/)
+    while (getlastkey() != 125 && t < 400*16)
     {
-        start = gettime();
+//        start = gettime();
 
         ang1Start = t;
         ang2Start = t;
@@ -587,7 +587,7 @@ start = gettime();
 
         t += 40*4; // ENSURE THIS IS A MULTIPLE OF 4
 
-        printnum(gettime()-start); vdp_sendstring("\r");
+//        printnum(gettime()-start); vdp_sendstring("\r");
     }
 printnum(gettime()-start); vdp_sendstring("\n\r");
 
