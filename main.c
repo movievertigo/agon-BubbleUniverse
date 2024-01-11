@@ -117,25 +117,26 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 
 #define innerloop(colIndex) \
 { \
-    asm("    LD A,%40"); \
+    asm("    LD A,%"#colIndex); \
+\
+    asm("    LD B,%40"); \
     asm("InnerLoop"#colIndex":"); \
 \
     /* for (j = ITERATIONS/4 - 1; j >= 0; --j) */ \
     { \
+        /* ang1 = ang1Start + v; */ \
+        asm("    ADD.s IY,DE"); /* v from IY, ang1Start from DE' */ \
+        asm("    EXX"); /* Leave alt-register mode */ \
+\
+        /* *(((char*)&ang1)+2) = (char)costable>>16; */ \
+        asm("    ADD IY,DE"); \
+\
         /* ang2 = ang2Start + u; */ \
         asm("    LEA HL,IX+0"); /* u from IX */ \
         asm("    ADD.s HL,SP"); /* ang2Start from SPS */ \
 \
         /* *(((char*)&ang2)+2) = (char)costable>>16; */ \
         asm("    ADD HL,DE"); \
-\
-        /* ang1 = ang1Start + v; */ \
-        asm("    EXX"); /* v from IY */ \
-        asm("    ADD.s IY,BC"); /* ang1Start from BC' */ \
-        asm("    EXX"); \
-\
-        /* *(((char*)&ang1)+2) = (char)costable>>16; */ \
-        asm("    ADD IY,DE"); \
 \
         /* u = *(int*)(ang1+COSTABLEENTRIES) + *(int*)(ang2+COSTABLEENTRIES); */ \
         asm("    LD BC,(IY)"); \
@@ -154,10 +155,10 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
         asm("    LD L,(IX)"); \
         asm("    LD H,E"); /* Assuming E is 0 as it's an address constant (quicker than LD H,%0) */ \
         asm("    ADD HL,BC"); /* Top byte of HL isn't clear but we compensate with -sintable in the scale table */ \
-        asm("    LD (HL),%"#colIndex); \
+        asm("    LD (HL),A"); \
     } \
-    asm("    DEC A"); \
-    asm("    JR NZ,InnerLoop"#colIndex); \
+    asm("    EXX"); /* Enter alt-register mode */ \
+    asm("    DJNZ InnerLoop"#colIndex); \
 }
 
 #define sintable ((long*)0x50000) // 0x50000 - 0x5FFFF
@@ -314,15 +315,17 @@ start = gettime();
         asm("    PUSH IX"); // Store current IX
 
         // ang1Start = t;
-        asm("    EXX");
-        asm("    LD BC,(_t)");
-        asm("    EXX");
+        asm("    EXX"); // Enter alt-register mode
+        asm("    LD DE,(_t)");
+
         // ang2Start = t;
         asm("    LD HL,(_t)");
         asm("    LD.s SP,HL");
 
         // Pre-load some constants into registers
+        asm("    EXX"); // Leave alt-register mode
         asm("    LD	DE,50000h");
+        asm("    EXX"); // Enter alt-register mode
 
         asm("    LD A,%10");
         asm("OuterLoop1:");
@@ -336,16 +339,15 @@ start = gettime();
             innerloop(3);
             innerloop(4);
            // ang1Start += SCALEVALUE;
-            asm("    EXX");
             asm("    LD HL,41720");
-            asm("    ADD HL,BC");
-            asm("    LD B,H");
-            asm("    LD C,L");
-            asm("    EXX");
+            asm("    ADD HL,DE");
+            asm("    EX DE,HL");
                 // ang2Start += RVALUE;
+            asm("    EXX"); // Leave alt-register mode
             asm("    LD HL,1112");
             asm("    ADD.s HL,SP");
             asm("    LD.s SP,HL");
+            asm("    EXX"); // Enter alt-register mode
         }
         asm("    EX AF,AF'"); // Switch A registers
         asm("    DEC A");
@@ -363,16 +365,15 @@ start = gettime();
             innerloop(7);
             innerloop(8);
             // ang1Start += SCALEVALUE;
-            asm("    EXX");
             asm("    LD HL,41720");
-            asm("    ADD HL,BC");
-            asm("    LD B,H");
-            asm("    LD C,L");
-            asm("    EXX");
+            asm("    ADD HL,DE");
+            asm("    EX DE,HL");
                 // ang2Start += RVALUE;
+            asm("    EXX"); // Leave alt-register mode
             asm("    LD HL,1112");
             asm("    ADD.s HL,SP");
             asm("    LD.s SP,HL");
+            asm("    EXX"); // Enter alt-register mode
         }
         asm("    EX AF,AF'"); // Switch A registers
         asm("    DEC A");
@@ -390,16 +391,15 @@ start = gettime();
             innerloop(B);
             innerloop(C);
             // ang1Start += SCALEVALUE;
-            asm("    EXX");
             asm("    LD HL,41720");
-            asm("    ADD HL,BC");
-            asm("    LD B,H");
-            asm("    LD C,L");
-            asm("    EXX");
+            asm("    ADD HL,DE");
+            asm("    EX DE,HL");
                 // ang2Start += RVALUE;
+            asm("    EXX"); // Leave alt-register mode
             asm("    LD HL,1112");
             asm("    ADD.s HL,SP");
             asm("    LD.s SP,HL");
+            asm("    EXX"); // Enter alt-register mode
         }
         asm("    EX AF,AF'"); // Switch A registers
         asm("    DEC A");
@@ -417,16 +417,15 @@ start = gettime();
             innerloop(F);
             innerloop(10);
             // ang1Start += SCALEVALUE;
-            asm("    EXX");
             asm("    LD HL,41720");
-            asm("    ADD HL,BC");
-            asm("    LD B,H");
-            asm("    LD C,L");
-            asm("    EXX");
+            asm("    ADD HL,DE");
+            asm("    EX DE,HL");
                 // ang2Start += RVALUE;
+            asm("    EXX"); // Leave alt-register mode
             asm("    LD HL,1112");
             asm("    ADD.s HL,SP");
             asm("    LD.s SP,HL");
+            asm("    EXX"); // Enter alt-register mode
         }
         asm("    EX AF,AF'"); // Switch A registers
         asm("    DEC A");
