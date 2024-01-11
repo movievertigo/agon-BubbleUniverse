@@ -123,37 +123,38 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
     /* for (j = ITERATIONS/4 - 1; j >= 0; --j) */ \
     { \
         /* ang2 = ang2Start + u; */ \
-        asm("    POP HL"); /* u from stack */ \
-        asm("    ADD.s HL,SP"); /* ang2Start from SPS */\
+        asm("    LD B,IXH"); /* u from IX */ \
+        asm("    LD C,IXL"); \
+        asm("    LD H,B"); \
+        asm("    LD L,C"); \
+        asm("    ADD.s HL,SP"); /* ang2Start from SPS */ \
 \
         /* *(((char*)&ang2)+2) = (char)costable>>16; */ \
         asm("    ADD HL,DE"); \
 \
         /* ang1 = ang1Start + v; */ \
-        asm("    POP BC"); \
-        asm("    LD IY,(_ang1Start)"); \
-        asm("    ADD.s IY,BC"); \
+        asm("    EXX"); /* v from IY */ \
+        asm("    ADD.s IY,BC"); /* ang1Start from BC' */ \
+        asm("    EXX"); \
 \
         /* *(((char*)&ang1)+2) = (char)costable>>16; */ \
         asm("    ADD IY,DE"); \
 \
-        /* v = *(int*)ang1 + *(int*)ang2; */ \
+        /* u = *(int*)(ang1+COSTABLEENTRIES) + *(int*)(ang2+COSTABLEENTRIES); */ \
         asm("    LD BC,(IY)"); \
         asm("    LD IX,(HL)"); \
         asm("    ADD IX,BC"); \
-        asm("    PUSH IX"); \
 \
-        /* u = *(int*)(ang1-SINTABLEENTRIES) + *(int*)(ang2-SINTABLEENTRIES); */ \
+        /* v = *(int*)ang1 + *(int*)ang2; */ \
         asm("    ADD IY,DE"); \
         asm("    ADD HL,DE"); \
         asm("    LD BC,(IY)"); \
         asm("    LD IY,(HL)"); \
         asm("    ADD IY,BC"); \
-        asm("    PUSH IY"); \
 \
         /* *(unsigned char*)(scaleYTable[v] + scaleXTable[u]) = colIndex; */ \
-        asm("    LD BC,(IX+1)"); \
-        asm("    LD L,(IY)"); \
+        asm("    LD BC,(IY+1)"); \
+        asm("    LD L,(IX)"); \
         asm("    LD H,E"); /* Assuming E is 0 as it's an address constant (quicker than LD H,%0) */ \
         asm("    ADD HL,BC"); /* Top byte of HL isn't clear but we compensate with -sintable in the scale table */ \
         asm("    LD (HL),%"#colIndex); \
@@ -162,7 +163,7 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
     asm("    JR NZ,InnerLoop"#colIndex); \
 }
 
-#define costable ((long*)0x50000) // 0x50000 - 0x5FFFF
+#define sintable ((long*)0x50000) // 0x50000 - 0x5FFFF
 
 #define bitmap ((char*)0x60000) // 0x60000 - 0x6FFFF
 #define bitmapCentre ((char*)(bitmap+(HEIGHT+1)*HEIGHT/2))
@@ -170,7 +171,7 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 
 #define scaleTable ((unsigned char*)0x80000) // 0x78000 - 0x87FFF
 
-#define sintable ((long*)(((int)costable)*2)) // 0xA0000 - 0xAFFFF
+#define costable ((long*)(((int)sintable)*2)) // 0xA0000 - 0xAFFFF
 
 #define rleHeader ((char*)0xB0000) // 0xB0000 - max length of RLE data
 #define rleData ((char*)(rleHeader+6))
@@ -178,7 +179,7 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 #define scaleDiv 176
 void generatescaletables()
 {
-    int i, step, xv = -32768 / scaleDiv + HEIGHT/2, yv = (long)bitmap - (long)sintable + (-8192 / (scaleDiv/4) + HEIGHT/2) * HEIGHT;
+    int i, step, xv = -32768 / scaleDiv + HEIGHT/2, yv = (long)bitmap - (long)costable + (-8192 / (scaleDiv/4) + HEIGHT/2) * HEIGHT;
     for (step = 0, i = -32768; i < 32768; i += 4)
     {
         scaleTable[i] = xv;
@@ -315,7 +316,10 @@ start = gettime();
 
         asm("    PUSH IX"); // Store current IX
 
-        ang1Start = t;
+        // ang1Start = t;
+        asm("    EXX");
+        asm("    LD BC,(_t)");
+        asm("    EXX");
         // ang2Start = t;
         asm("    LD HL,(_t)");
         asm("    LD.s SP,HL");
@@ -328,20 +332,19 @@ start = gettime();
         asm("    EX AF,AF'"); // Switch A registers
         // for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
-            asm("    LD BC,0");
-            asm("    PUSH BC"); // v = 0
-            asm("    PUSH BC"); // u = 0
+            asm("    LD IX,0"); // v = 0
+            asm("    LD IY,0"); // u = 0
             innerloop(1);
             innerloop(2);
             innerloop(3);
             innerloop(4);
-            asm("    POP BC"); // Balance the stack
-            asm("    POP BC"); // Balance the stack
-            // ang1Start += SCALEVALUE;
-            asm("    LD BC,41720");
-            asm("    LD HL,(_ang1Start)");
+           // ang1Start += SCALEVALUE;
+            asm("    EXX");
+            asm("    LD HL,41720");
             asm("    ADD HL,BC");
-            asm("    LD (_ang1Start),HL");
+            asm("    LD B,H");
+            asm("    LD C,L");
+            asm("    EXX");
                 // ang2Start += RVALUE;
             asm("    LD HL,1112");
             asm("    ADD.s HL,SP");
@@ -356,20 +359,19 @@ start = gettime();
         asm("    EX AF,AF'"); // Switch A registers
         //        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
-            asm("    LD BC,0");
-            asm("    PUSH BC"); // v = 0
-            asm("    PUSH BC"); // u = 0
+            asm("    LD IX,0"); // v = 0
+            asm("    LD IY,0"); // u = 0
             innerloop(5);
             innerloop(6);
             innerloop(7);
             innerloop(8);
-            asm("    POP BC"); // Balance the stack
-            asm("    POP BC"); // Balance the stack
             // ang1Start += SCALEVALUE;
-            asm("    LD BC,41720");
-            asm("    LD HL,(_ang1Start)");
+            asm("    EXX");
+            asm("    LD HL,41720");
             asm("    ADD HL,BC");
-            asm("    LD (_ang1Start),HL");
+            asm("    LD B,H");
+            asm("    LD C,L");
+            asm("    EXX");
                 // ang2Start += RVALUE;
             asm("    LD HL,1112");
             asm("    ADD.s HL,SP");
@@ -384,20 +386,19 @@ start = gettime();
         asm("    EX AF,AF'"); // Switch A registers
         //        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
-            asm("    LD BC,0");
-            asm("    PUSH BC"); // v = 0
-            asm("    PUSH BC"); // u = 0
+            asm("    LD IX,0"); // v = 0
+            asm("    LD IY,0"); // u = 0
             innerloop(9);
             innerloop(A);
             innerloop(B);
             innerloop(C);
-            asm("    POP BC"); // Balance the stack
-            asm("    POP BC"); // Balance the stack
             // ang1Start += SCALEVALUE;
-            asm("    LD BC,41720");
-            asm("    LD HL,(_ang1Start)");
+            asm("    EXX");
+            asm("    LD HL,41720");
             asm("    ADD HL,BC");
-            asm("    LD (_ang1Start),HL");
+            asm("    LD B,H");
+            asm("    LD C,L");
+            asm("    EXX");
                 // ang2Start += RVALUE;
             asm("    LD HL,1112");
             asm("    ADD.s HL,SP");
@@ -412,20 +413,19 @@ start = gettime();
         asm("    EX AF,AF'"); // Switch A registers
         //        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
-            asm("    LD BC,0");
-            asm("    PUSH BC"); // u = 0
-            asm("    PUSH BC"); // u = 0
+            asm("    LD IX,0"); // v = 0
+            asm("    LD IY,0"); // u = 0
             innerloop(D);
             innerloop(E);
             innerloop(F);
             innerloop(10);
-            asm("    POP BC"); // Balance the stack
-            asm("    POP BC"); // Balance the stack
             // ang1Start += SCALEVALUE;
-            asm("    LD BC,41720");
-            asm("    LD HL,(_ang1Start)");
+            asm("    EXX");
+            asm("    LD HL,41720");
             asm("    ADD HL,BC");
-            asm("    LD (_ang1Start),HL");
+            asm("    LD B,H");
+            asm("    LD C,L");
+            asm("    EXX");
                 // ang2Start += RVALUE;
             asm("    LD HL,1112");
             asm("    ADD.s HL,SP");
