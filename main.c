@@ -123,10 +123,7 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
     /* for (j = ITERATIONS/4 - 1; j >= 0; --j) */ \
     { \
         /* ang2 = ang2Start + u; */ \
-        asm("    LD B,IXH"); /* u from IX */ \
-        asm("    LD C,IXL"); \
-        asm("    LD H,B"); \
-        asm("    LD L,C"); \
+        asm("    LEA HL,IX+0"); /* u from IX */ \
         asm("    ADD.s HL,SP"); /* ang2Start from SPS */ \
 \
         /* *(((char*)&ang2)+2) = (char)costable>>16; */ \
