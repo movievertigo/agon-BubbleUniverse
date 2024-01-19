@@ -52,6 +52,12 @@ static char writeToBufferBuffer[8] = {23, 0, 0xA0, 0, 0, 0, 0, 0};
     vdp_sendblock(writeToBufferBuffer, 8); \
     vdp_sendblock(data, length); \
 }
+#define preparetowritetobuffer(bufferId,length) \
+{ \
+    *(short*)(writeToBufferBuffer+3) = bufferId; \
+    *(short*)(writeToBufferBuffer+6) = length; \
+    vdp_sendblock(writeToBufferBuffer, 8); \
+}
 
 static char callBufferBuffer[6] = {23, 0, 0xA0, 0, 0, 1};
 #define callbuffer(bufferId) \
@@ -86,6 +92,14 @@ static char adjustBufferBuffer[12] = {23, 0, 0xA0, 0, 0, 5, 0, 0, 0, 0, 0, 0};
     adjustBufferBuffer[11] = operand; \
     vdp_sendblock(adjustBufferBuffer, 12); \
 }
+
+static char consolidateBufferBuffer[6] = {23, 0, 0xA0, 0, 0, 14};
+#define consolidatebuffer(bufferId) \
+{ \
+    *(short*)(consolidateBufferBuffer+3) = bufferId; \
+    vdp_sendblock(consolidateBufferBuffer, 6); \
+}
+
 
 static char selectBufferForBitmapBuffer[5] = {23, 27, 0x20, 0, 0};
 #define selectbufferforbitmap(bufferId) \
@@ -205,18 +219,14 @@ void expandsintable()
 
 void makecommandbuffer()
 {
-    char commandBuffer[21] = {23, 0, 0xA0, 0, 0, 14,    23, 27, 0x21, 0, 0, 0, 0, 0,    23, 27, 3, 0, 0, 0, 0};
+    preparetowritetobuffer(COMMANDBUFFER, 6+8+7)
+    {
+        consolidatebuffer(BITMAPBUFFER);                        // Length 6
+        createbitmapfrombuffer(HEIGHT, HEIGHT, BITMAPFORMAT);   // Length 8
+        drawbitmap((WIDTH-HEIGHT)/2, 0);                        // Length 7
+    }
 
-    *(short*)(commandBuffer+0 + 3) = BITMAPBUFFER;
-
-    *(short*)(commandBuffer+6+3) = HEIGHT;
-    *(short*)(commandBuffer+6+5) = HEIGHT;
-    commandBuffer[6+7] = BITMAPFORMAT;
-
-    *(short*)(commandBuffer+14+3) = (WIDTH-HEIGHT)/2;
-    *(short*)(commandBuffer+14+5) = 0;
-
-    writetobuffer(COMMANDBUFFER, commandBuffer, 21);
+    consolidatebuffer(COMMANDBUFFER);
 }
 
 void prependandappend()
