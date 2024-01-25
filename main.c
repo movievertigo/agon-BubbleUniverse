@@ -443,12 +443,14 @@ start = gettime();
         //ptr = bitmap;
         asm("    LD IY,60000h");
 
+        asm("    LD BC,0");
+        asm("    OR A,A"); // Clear carry
+
         // while (1)
         {
             asm("RLE_Loop:");
 
             // if (*(unsigned int*)ptr == 0)
-            asm("    LD BC,0");
             asm("    LD HL,(IY)");
             asm("    SBC HL,BC");
             asm("    JR NZ,RLE_ColourTriple");
@@ -566,10 +568,8 @@ start = gettime();
 //                rle += 2;
                 asm("    LEA IX,IX+%2");
 
-                // *(unsigned short*)ptr = 0;
-                asm("    LD (IY),%0");
-                asm("    LD (IY+1),%0");
-                asm("    LD (IY+2),%0");
+                // *(unsigned int*)ptr = 0;
+                asm("    LD (IY),BC");
 
                 // ptr += 3;
                 asm("    LEA IY,IY+%3");
