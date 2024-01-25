@@ -578,7 +578,7 @@ start = gettime();
                 asm("    LD (IY+1),%0");
                 asm("    LD (IY+2),%0");
 
-                // ptr += 2;
+                // ptr += 3;
                 asm("    LEA IY,IY+%3");
 
                 asm("    JR RLE_Loop");
