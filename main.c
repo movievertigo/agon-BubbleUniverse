@@ -235,7 +235,7 @@ void prependandappend()
     rleHeader[1] = 0;
     rleHeader[2] = 0xA0;
     *(short*)(rleHeader+3) = BITMAPBUFFER;
-    rleHeader[5] = 13;
+    rleHeader[5] = 0x19;
 
     bitmapEnd[0] = 255;
 }
@@ -252,7 +252,7 @@ void clearbitmap()
 void createRLEbuffers()
 {
     int len, bufferId;
-    unsigned char colA, colB, colour, sequence[2];
+    unsigned char colA, colB, colC, colour, sequence[3];
 
     bufferId = 0;
     for (len = 1; len <= 256; ++len)
@@ -275,22 +275,18 @@ void createRLEbuffers()
         }
     }
 
-    for (colB = 0; colB < 16; ++colB)
+    for (colC = 0; colC <= 16; ++colC)
     {
-        sequence[1] = makecolour(colB >> 2, colB & 3);
-        bufferId = ((colB+1)<<8) + 0x2001;
-        for (colA = 0; colA < 16; ++colA)
+        sequence[2] = colC == 0 ? 0xc0 : makecolour((colC-1) >> 2, (colC-1) & 3);
+        for (colB = 0; colB <= 16; ++colB)
         {
-            sequence[0] = makecolour(colA >> 2, colA & 3);
-            writetobuffer(bufferId + colA, sequence, 2);
+            sequence[1] = colB == 0 ? 0xc0 : makecolour((colB-1) >> 2, (colB-1) & 3);
+            for (colA = 0; colA <= 16; ++colA)
+            {
+                sequence[0] = colA == 0 ? 0xc0 : makecolour((colA-1) >> 2, (colA-1) & 3);
+                writetobuffer(0x2000 + colA + (colB<<5) + (colC<<10), sequence, 3);
+            }
         }
-    }
-
-    sequence[1] = 0xc0;
-    for (colA = 0; colA < 16; ++colA)
-    {
-        sequence[0] = makecolour(colA >> 2, colA & 3);
-        writetobuffer(colA + 0x2001, sequence, 2);
     }
 }
 
@@ -454,7 +450,7 @@ start = gettime();
             // if (*ptr == 0)
             asm("    LD A,(IY)");
             asm("    OR A,A");
-            asm("    JR NZ,RLE_ColourPair");
+            asm("    JR NZ,RLE_ColourTriple");
 
             {
                 //len = 0;
@@ -556,14 +552,23 @@ start = gettime();
             }
             // else
             {
-                asm("RLE_ColourPair:");
+                asm("RLE_ColourTriple:");
 
-//                *(unsigned short*)rle = 0x2000 + *(unsigned short*)ptr;
-                asm("    LD BC,(IY)");
+//                *(unsigned short*)rle = 0x2000 + ptr[0] + ptr[1]<<5 + ptr[2]<<10;
+                asm("    LD L,(IY+1)");
+                asm("    ADD HL,HL");
+                asm("    ADD HL,HL");
+                asm("    ADD HL,HL");
+                asm("    LD H,(IY+2)");
+                asm("    ADD HL,HL");
+                asm("    ADD HL,HL");
+                asm("    LD A,(IY)");
+                asm("    ADD A,L");
+                asm("    LD L,A");
                 asm("    LD A,%20");
-                asm("    ADD A,B");
-                asm("    LD B,A");
-                asm("    LD (IX),BC"); // The high (3rd) byte gets written but doesn't affect anything
+                asm("    ADD A,H");
+                asm("    LD H,A");
+                asm("    LD (IX),HL"); // The high (3rd) byte gets written but doesn't affect anything
 
 //                rle += 2;
                 asm("    LEA IX,IX+%2");
@@ -571,9 +576,10 @@ start = gettime();
                 // *(unsigned short*)ptr = 0;
                 asm("    LD (IY),%0");
                 asm("    LD (IY+1),%0");
+                asm("    LD (IY+2),%0");
 
                 // ptr += 2;
-                asm("    LEA IY,IY+%2");
+                asm("    LEA IY,IY+%3");
 
                 asm("    JR RLE_Loop");
             }
@@ -594,6 +600,7 @@ start = gettime();
 printnum(gettime()-start); vdp_sendstring("\n\r");
 
 //    cls();
+    clearallbuffers();
     cursor(1);
     return 0;
 }
