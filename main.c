@@ -447,9 +447,10 @@ start = gettime();
         {
             asm("RLE_Loop:");
 
-            // if (*ptr == 0)
-            asm("    LD A,(IY)");
-            asm("    OR A,A");
+            // if (*(unsigned int*)ptr == 0)
+            asm("    LD BC,0");
+            asm("    LD HL,(IY)");
+            asm("    SBC HL,BC");
             asm("    JR NZ,RLE_ColourTriple");
 
             {
@@ -457,12 +458,6 @@ start = gettime();
                 asm("    LD E,%0");
 
                 asm("    LD D,%3");
-
-                // if (*(unsigned int*)ptr == 0)
-                asm("    LD BC,0");
-                asm("    LD HL,(IY)");
-                asm("    SBC HL,BC");
-                asm("    JR NZ,RLE_Not3Black");
 
                 {
                     asm("    LD A,E");
@@ -492,8 +487,6 @@ start = gettime();
                     // Skip "decrementing then incrementing";
                     asm("    JR RLE_From3Black");
                 }
-
-                asm("RLE_Not3Black:");
 
                 // while (*++ptr == 0 && ++len < 255) {}
                 asm("RLE_CountBlack1Loop:");
