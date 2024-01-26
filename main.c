@@ -485,22 +485,28 @@ start = gettime();
                     // --len; (INC at start then SUB 3 above then INC below equals -1)
                     asm("    INC A");
                     asm("    LD E,A");
-
-                    // Skip "decrementing then incrementing";
-                    asm("    JR RLE_From3Black");
                 }
 
                 // while (*++ptr == 0 && ++len < 255) {}
                 asm("RLE_CountBlack1Loop:");
-                asm("    INC IY");
-                asm("RLE_From3Black:");
                 asm("    LD A,(IY)");
                 asm("    OR A,A");
                 asm("    JR NZ,RLE_CountBlack1End");
                 asm("    INC E");
                 asm("    LD A,E");
                 asm("    INC A"); // Instead of CP A,%FF
-                asm("    JR NZ,RLE_CountBlack1Loop");
+                asm("    JR Z,RLE_CountBlack1End");
+                asm("    INC IY");
+                asm("    LD A,(IY)");
+                asm("    OR A,A");
+                asm("    JR NZ,RLE_CountBlack1End");
+                asm("    INC E");
+                asm("    INC IY");
+                asm("    LD A,(IY)");
+                asm("    OR A,A");
+                asm("    JR NZ,RLE_CountBlack1End");
+                asm("    INC E");
+                asm("    INC IY");
                 asm("RLE_CountBlack1End:");
 
                 {
@@ -554,15 +560,15 @@ start = gettime();
                 asm("    ADD HL,HL");
                 asm("    ADD HL,HL");
                 asm("    ADD HL,HL");
-                asm("    LD H,(IY+2)");
+                asm("    LD A,%20>>2"); // This is the top byte of 0x2000 >>2 as it will be <<2 below
+                asm("    ADD A,(IY+2)");
+                asm("    LD H,A"); 
                 asm("    ADD HL,HL");
                 asm("    ADD HL,HL");
-                asm("    LD A,(IY)");
-                asm("    ADD A,L");
+                asm("    LD A,L");
+                asm("    ADD A,(IY)");
                 asm("    LD L,A");
-                asm("    LD A,%20");
-                asm("    ADD A,H");
-                asm("    LD H,A");
+
                 asm("    LD (IX),HL"); // The high (3rd) byte gets written but doesn't affect anything
 
 //                rle += 2;
