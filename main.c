@@ -457,12 +457,11 @@ start = gettime();
 
             {
                 //len = 0;
-                asm("    LD E,%0");
+                asm("    LD A,B"); // BC Was set to zero before we started
 
                 asm("    LD D,%3");
 
                 {
-                    asm("    LD A,E");
                     asm("    INC A");
 
                     // do
@@ -474,7 +473,7 @@ start = gettime();
                     }
                     // while (*(unsigned int*)ptr == 0 && len < 255);
                     asm("    LD HL,(IY)");
-                    asm("    SBC HL,BC"); // BC Was set to zero before we started the loop
+                    asm("    SBC HL,BC"); // BC Was set to zero before we started
                     asm("    JR NZ,RLE_CountBlack3End");
                     // len += 3;
                     asm("    ADD A,D");
@@ -520,7 +519,7 @@ start = gettime();
 
                     {
                         // *ptr = 0;
-                        asm("    LD (IY),%0");
+                        asm("    LD (IY),B"); // BC Was set to zero before we started
 
                         // ++ptr;
                         asm("    INC IY");
@@ -540,7 +539,7 @@ start = gettime();
 
                         //*rle = len;
                         //*(rle+1) = 0;
-                        asm("    LD D,%0");
+                        asm("    LD D,B"); // BC Was set to zero before we started
                         asm("    LD	(IX),DE"); // The high (3rd) byte gets written but doesn't affect anything
 
                         //rle += 2;
