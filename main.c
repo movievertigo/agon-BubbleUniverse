@@ -127,7 +127,7 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 }
 
 #define makecolour(outer, inner) (0xc0 + (outer) + (inner)*4 + (3-(((outer)+(inner))>>1)) * 16)
-#define makecolourindex(outer, inner) ((outer<<2) + inner + 1)
+#define makecolourfromindex(index) makecolour(index>>2, index&3)
 
 #define innerloop(colIndex) \
 { \
@@ -252,7 +252,26 @@ void clearbitmap()
 void createRLEbuffers()
 {
     int len, bufferId;
-    unsigned char colA, colB, colC, colour, sequence[3];
+    unsigned char colA, colB, colC, bitA, bitB, bitC, bitD, bitE, bitF, bitG, bitH, colour, coloursincblack[17], sequence[8];
+    unsigned char* colours = coloursincblack+1;
+
+    coloursincblack[0] = 0xc0;
+    colours[0x0] = makecolourfromindex(0x0);
+    colours[0x1] = makecolourfromindex(0x1);
+    colours[0x2] = makecolourfromindex(0x2);
+    colours[0x3] = makecolourfromindex(0x3);
+    colours[0x4] = makecolourfromindex(0x4);
+    colours[0x5] = makecolourfromindex(0x5);
+    colours[0x6] = makecolourfromindex(0x6);
+    colours[0x7] = makecolourfromindex(0x7);
+    colours[0x8] = makecolourfromindex(0x8);
+    colours[0x9] = makecolourfromindex(0x9);
+    colours[0xA] = makecolourfromindex(0xA);
+    colours[0xB] = makecolourfromindex(0xB);
+    colours[0xC] = makecolourfromindex(0xC);
+    colours[0xD] = makecolourfromindex(0xD);
+    colours[0xE] = makecolourfromindex(0xE);
+    colours[0xF] = makecolourfromindex(0xF);
 
     bufferId = 0;
     for (len = 1; len <= 256; ++len)
@@ -264,8 +283,7 @@ void createRLEbuffers()
 
     for (colA = 0; colA < 16; ++colA)
     {
-        colour = makecolour(colA >> 2, colA & 3);
-
+        colour = colours[colA];
         for (len = 1; len <= 256; ++len)
         {
             createbuffer(bufferId, len + 1);
@@ -275,18 +293,62 @@ void createRLEbuffers()
         }
     }
 
-    for (colC = 0; colC <= 16; ++colC)
+    bufferId = 0x2000;
+    for (colA = 0; colA < 16; ++colA)
     {
-        sequence[2] = colC == 0 ? 0xc0 : makecolour((colC-1) >> 2, (colC-1) & 3);
-        for (colB = 0; colB <= 16; ++colB)
+        colour = colours[colA];
+        for (bitA = 0; bitA < 2; ++bitA)
         {
-            sequence[1] = colB == 0 ? 0xc0 : makecolour((colB-1) >> 2, (colB-1) & 3);
-            for (colA = 0; colA <= 16; ++colA)
+            sequence[7] = bitA ? colour : 0xc0;
+            for (bitB = 0; bitB < 2; ++bitB)
             {
-                sequence[0] = colA == 0 ? 0xc0 : makecolour((colA-1) >> 2, (colA-1) & 3);
-                writetobuffer(0x2000 + colA + (colB<<5) + (colC<<10), sequence, 3);
+                sequence[6] = bitB ? colour : 0xc0;
+                for (bitC = 0; bitC < 2; ++bitC)
+                {
+                    sequence[5] = bitC ? colour : 0xc0;
+                    for (bitD = 0; bitD < 2; ++bitD)
+                    {
+                        sequence[4] = bitD ? colour : 0xc0;
+                        for (bitE = 0; bitE < 2; ++bitE)
+                        {
+                            sequence[3] = bitE ? colour : 0xc0;
+                            for (bitF = 0; bitF < 2; ++bitF)
+                            {
+                                sequence[2] = bitF ? colour : 0xc0;
+                                for (bitG = 0; bitG < 2; ++bitG)
+                                {
+                                    sequence[1] = bitG ? colour : 0xc0;
+                                    for (bitH = 0; bitH < 2; ++bitH)
+                                    {
+                                        sequence[0] = bitH ? colour : 0xc0;
+                                        writetobuffer(bufferId, sequence, 8);
+                                        ++bufferId;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
+    }
+
+    bufferId = 0x8000;
+    for (colC = 0; colC <= 16; ++colC)
+    {
+        sequence[2] = coloursincblack[colC];
+        for (colB = 0; colB <= 16; ++colB)
+        {
+            sequence[1] = coloursincblack[colB];
+            for (colA = 0; colA <= 16; ++colA)
+            {
+                sequence[0] = coloursincblack[colA];
+                writetobuffer(bufferId, sequence, 3);
+                ++bufferId;
+            }
+            bufferId += (1<<5) - 17;
+        }
+        bufferId += (1<<10) - (17<<5);
     }
 }
 
@@ -444,16 +506,16 @@ start = gettime();
         asm("    LD IY,60000h");
 
         asm("    LD BC,0");
-        asm("    OR A,A"); // Clear carry
 
         // while (1)
         {
             asm("RLE_Loop:");
+            asm("    OR A,A"); // Clear carry
 
             // if (*(unsigned int*)ptr == 0)
             asm("    LD HL,(IY)");
             asm("    SBC HL,BC");
-            asm("    JR NZ,RLE_ColourTriple");
+            asm("    JR NZ,RLE_Sextuple");
 
             {
                 //len = 0;
@@ -552,6 +614,111 @@ start = gettime();
             }
             // else
             {
+                {
+                    asm("RLE_Sextuple:");
+
+                    asm("    LD E,B"); // BC Was set to zero before we started
+                    asm("    LEA HL,IY+0");
+
+                    asm("    LD A,(HL)");
+                    asm("    OR A,A");
+                    asm("    JR Z,RLE_Sextuple_CheckPixelTwo");
+                    asm("    LD D,A");
+                    asm("    INC E");
+                    asm("    JR RLE_Sextuple_PixelTwo");
+                    asm("RLE_Sextuple_CheckPixelTwo:");
+                    asm("    INC HL");
+                    asm("    LD A,(HL)");
+                    asm("    OR A,A");
+                    asm("    JR Z,RLE_Sextuple_CheckPixelThree");
+                    asm("    LD D,A");
+                    asm("    SET 1,E");
+                    asm("    JR RLE_Sextuple_PixelThree");
+                    asm("RLE_Sextuple_CheckPixelThree:");
+                    asm("    INC HL");
+                    asm("    LD D,(HL)");
+                    asm("    SET 2,E");
+                    asm("    JR RLE_Sextuple_PixelFour");
+
+                    asm("RLE_Sextuple_PixelTwo:");
+                    asm("    INC HL");
+                    asm("    LD A,(HL)");
+                    asm("    OR A,A");
+                    asm("    JR Z,RLE_Sextuple_PixelThree");
+                    asm("    CP A,D");
+                    asm("    JR NZ,RLE_ColourTriple");
+                    asm("    SET 1,E");
+
+                    asm("RLE_Sextuple_PixelThree:");
+                    asm("    INC HL");
+                    asm("    LD A,(HL)");
+                    asm("    OR A,A");
+                    asm("    JR Z,RLE_Sextuple_PixelFour");
+                    asm("    CP A,D");
+                    asm("    JR NZ,RLE_ColourTriple");
+                    asm("    SET 2,E");
+
+                    asm("RLE_Sextuple_PixelFour:");
+                    asm("    INC HL");
+                    asm("    LD A,(HL)");
+                    asm("    OR A,A");
+                    asm("    JR Z,RLE_Sextuple_PixelFive");
+                    asm("    CP A,D");
+                    asm("    JR NZ,RLE_ColourTriple");
+                    asm("    SET 3,E");
+
+                    asm("RLE_Sextuple_PixelFive:");
+                    asm("    INC HL");
+                    asm("    LD A,(HL)");
+                    asm("    OR A,A");
+                    asm("    JR Z,RLE_Sextuple_PixelSix");
+                    asm("    CP A,D");
+                    asm("    JR NZ,RLE_ColourTriple");
+                    asm("    SET 4,E");
+
+                    asm("RLE_Sextuple_PixelSix:");
+                    asm("    INC HL");
+                    asm("    LD A,(HL)");
+                    asm("    OR A,A");
+                    asm("    JR Z,RLE_Sextuple_PixelSeven");
+                    asm("    CP A,D");
+                    asm("    JR NZ,RLE_ColourTriple");
+                    asm("    SET 5,E");
+
+                    asm("RLE_Sextuple_PixelSeven:");
+                    asm("    INC HL");
+                    asm("    LD A,(HL)");
+                    asm("    OR A,A");
+                    asm("    JR Z,RLE_Sextuple_PixelEight");
+                    asm("    CP A,D");
+                    asm("    JR NZ,RLE_ColourTriple");
+                    asm("    SET 6,E");
+
+                    asm("RLE_Sextuple_PixelEight:");
+                    asm("    INC HL");
+                    asm("    LD A,(HL)");
+                    asm("    OR A,A");
+                    asm("    JR Z,RLE_Sextuple_PixelsFinished");
+                    asm("    CP A,D");
+                    asm("    JR NZ,RLE_ColourTriple");
+                    asm("    SET 7,E");
+
+                    asm("RLE_Sextuple_PixelsFinished:");
+
+                    asm("    LD A,D");
+                    asm("    ADD A,%20-1");
+                    asm("    LD D,A");
+
+                    asm("    LD (IX),DE"); // The high (3rd) byte gets written but doesn't affect anything
+                    asm("    LEA IX,IX+%2");
+
+                    asm("    LD (IY),BC");
+                    asm("    LD (IY+2),BC");
+                    asm("    LD (IY+5),BC");
+                    asm("    LEA IY,IY+%8");
+                    asm("    JR RLE_Loop");
+                }
+
                 asm("RLE_ColourTriple:");
 
 //                *(unsigned short*)rle = 0x2000 + ptr[0] + ptr[1]<<5 + ptr[2]<<10;
@@ -559,7 +726,7 @@ start = gettime();
                 asm("    ADD HL,HL");
                 asm("    ADD HL,HL");
                 asm("    ADD HL,HL");
-                asm("    LD A,%20>>2"); // This is the top byte of 0x2000 >>2 as it will be <<2 below
+                asm("    LD A,%80>>2"); // This is the top byte of 0x2000 >>2 as it will be <<2 below
                 asm("    ADD A,(IY+2)");
                 asm("    LD H,A"); 
                 asm("    ADD HL,HL");
