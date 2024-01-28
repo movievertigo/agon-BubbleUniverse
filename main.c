@@ -168,7 +168,7 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
         asm("    LD BC,(IY+1)"); \
         asm("    LD L,(IX)"); \
         asm("    LD H,E"); /* Assuming E is 0 as it's an address constant (quicker than LD H,%0) */ \
-        asm("    ADD HL,BC"); /* Top byte of HL isn't clear but we compensate with -sintable in the scale table */ \
+        asm("    ADD HL,BC"); /* Top byte of HL isn't clear but we compensate with -costable in the scale table */ \
         asm("    LD (HL),A"); \
     } \
     asm("    EXX"); /* Enter alt-register mode */ \
@@ -183,10 +183,10 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 
 #define scaleTable ((unsigned char*)0x80000) // 0x78000 - 0x87FFF
 
-#define costable ((long*)(((int)sintable)*2)) // 0xA0000 - 0xAFFFF
-
-#define rleHeader ((char*)0xB0000) // 0xB0000 - max length of RLE data
+#define rleHeader ((char*)0x90000) // 0x90000 - max length of RLE data
 #define rleData ((char*)(rleHeader+6))
+
+#define costable ((long*)(((int)sintable)*2)) // 0xA0000 - 0xAFFFF
 
 #define scaleDiv 176
 void generatescaletables()
@@ -518,7 +518,7 @@ start = gettime();
         asm("    JR NZ,OuterLoop4");
 
         //rle = rleData;
-        asm("    LD IX,B0006h");
+        asm("    LD IX,90006h");
 
         //ptr = bitmap;
         asm("    LD IY,60000h");
