@@ -298,9 +298,9 @@ void createRLEbuffers()
     {
         colour = colours[colA];
 
-        for (lenB = 1+2; lenB <= 16+2; ++lenB)
+        for (lenA = 1+2; lenA <= 16+2; ++lenA)
         {
-            for (lenA = 1+2; lenA <= 16+2; ++lenA)
+            for (lenB = 1+2; lenB <= 16+2; ++lenB)
             {
                 createbuffer(bufferId, lenA + 1 + lenB + 1);
                 adjustbuffermultiple(bufferId, 0x42, 0, lenA + 1 + lenB, 0xc0);
@@ -565,8 +565,8 @@ start = gettime();
                     asm("RLE_CountBlack3End:");
 
                     // --len; (INC at start then SUB 3 above then INC below equals -1)
-                    asm("    INC A");
                     asm("    LD E,A");
+                    asm("    INC E");
                 }
 
                 // while (*++ptr == 0 && ++len < 255) {}
@@ -607,42 +607,37 @@ start = gettime();
                             asm("    LD A,E");
                             asm("    CP A,16+2");
                             asm("    JR NC,RLE_NoConsolidation");
-                            // Is the previous run length < 16
-                            asm("    EXX");
-                            asm("    LD A,E");
-                            asm("    EXX");
-                            asm("    CP A,16+2");
-                            asm("    JR NC,RLE_NoConsolidation");
-                            // Are the colours the same and non-zero
+                            // Is the current colour non-zero
                             asm("    LD A,D");
                             asm("    OR A,A");
                             asm("    JR Z,RLE_NoConsolidation");
+                             // Are the colours the same
                             asm("    EXX");
                             asm("    CP A,D");
+                            asm("    LD A,E"); // Load the previous length while we are in alt-register mode
                             asm("    EXX");
                             asm("    JR NZ,RLE_NoConsolidation");
+                           // Is the previous run length < 16
+                            asm("    CP A,16+2");
+                            asm("    JR NC,RLE_NoConsolidation");
 
-                            asm("    LD A,E");
                             asm("    SUB A,%2");
                             asm("    ADD A,A");
                             asm("    ADD A,A");
                             asm("    ADD A,A");
                             asm("    ADD A,A");
-                            asm("    EXX");
                             asm("    ADD A,E");
                             asm("    SUB A,%2");
-                            asm("    EXX");
                             asm("    LD E,A");
                             asm("    LD A,D");
                             asm("    ADD A,%20-1");
                             asm("    LD D,A");
 
+                            // We'll overwrite the previous entry with the consolidated entry
                             asm("    LEA IX,IX-%2");
-
-
-
-                            asm("RLE_NoConsolidation:");
                         }
+
+                        asm("RLE_NoConsolidation:");
 
                         // *(rle+1) = col; *rle = len;
                         asm("    LD	(IX),DE"); // The high (3rd) byte gets written but doesn't affect anything
@@ -680,9 +675,8 @@ start = gettime();
                     asm("RLE_Sextuple:");
 
                     asm("    LD E,B"); // BC Was set to zero before we started
-                    asm("    LEA HL,IY+0");
 
-                    asm("    LD A,(HL)");
+                    asm("    LD A,L");
                     asm("    OR A,A");
                     asm("    JR Z,RLE_Sextuple_CheckPixelTwo");
                     asm("    LD D,A");
@@ -691,9 +685,9 @@ start = gettime();
                     asm("    INC E");
                     asm("    JR RLE_Sextuple_PixelTwo");
                     asm("RLE_Sextuple_CheckPixelTwo:");
-                    asm("    INC HL");
-                    asm("    LD A,(HL)");
+                    asm("    LD A,H");
                     asm("    OR A,A");
+                    asm("    LEA HL,IY+2");
                     asm("    JR Z,RLE_Sextuple_CheckPixelThree");
                     asm("    LD D,A");
                     asm("    INC A"); // Compare second pixel with 255
@@ -701,7 +695,6 @@ start = gettime();
                     asm("    SET 1,E");
                     asm("    JR RLE_Sextuple_PixelThree");
                     asm("RLE_Sextuple_CheckPixelThree:");
-                    asm("    INC HL");
                     asm("    LD D,(HL)");
                     asm("    SET 2,E");
                     asm("    LD A,D");
@@ -711,16 +704,15 @@ start = gettime();
                     asm("    JR	Z,RLE_LastRun");
 
                     asm("RLE_Sextuple_PixelTwo:");
-                    asm("    INC HL");
-                    asm("    LD A,(HL)");
+                    asm("    LD A,H");
                     asm("    OR A,A");
+                    asm("    LEA HL,IY+2");
                     asm("    JR Z,RLE_Sextuple_PixelThree");
                     asm("    CP A,D");
                     asm("    JR NZ,RLE_ColourTriple");
                     asm("    SET 1,E");
 
                     asm("RLE_Sextuple_PixelThree:");
-                    asm("    INC HL");
                     asm("    LD A,(HL)");
                     asm("    OR A,A");
                     asm("    JR Z,RLE_Sextuple_PixelFour");
