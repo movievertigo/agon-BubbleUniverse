@@ -589,11 +589,8 @@ start = gettime();
                             asm("    LD A,E");
                             asm("    CP A,16+2");
                             asm("    JR NC,RLE_NoConsolidation");
-                            // Is the current colour non-zero
+                            // Are the colours the same
                             asm("    LD A,D");
-                            asm("    OR A,A");
-                            asm("    JR Z,RLE_NoConsolidation");
-                             // Are the colours the same
                             asm("    EXX");
                             asm("    CP A,D");
                             asm("    LD A,E"); // Load the previous length while we are in alt-register mode
@@ -616,7 +613,13 @@ start = gettime();
                             asm("    LD D,A");
 
                             // We'll overwrite the previous entry with the consolidated entry
-                            asm("    LEA IX,IX-%2");
+                            asm("    LD	(IX-2),DE"); // The high (3rd) byte gets written but doesn't affect anything
+
+                            asm("    LD (IY),B"); // BC Was set to zero before we started
+                            asm("    INC IY");
+
+                            asm("    JR RLE_Loop");
+
                         }
 
                         asm("RLE_NoConsolidation:");
