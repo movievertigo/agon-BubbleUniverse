@@ -411,9 +411,8 @@ start = gettime();
         asm("    LD	DE,50000h");
         asm("    EXX"); // Enter alt-register mode
 
-        asm("    LD A,%10");
+        asm("    LD C,%10");
         asm("OuterLoop1:");
-        asm("    EX AF,AF'"); // Switch A registers
         // for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
             asm("    LD IX,0"); // v = 0
@@ -427,19 +426,15 @@ start = gettime();
             asm("    ADD HL,DE");
             asm("    EX DE,HL");
                 // ang2Start += RVALUE;
-            asm("    EXX"); // Leave alt-register mode
             asm("    LD HL,1112");
             asm("    ADD.s HL,SP");
             asm("    LD.s SP,HL");
-            asm("    EXX"); // Enter alt-register mode
         }
-        asm("    EX AF,AF'"); // Switch A registers
-        asm("    DEC A");
+        asm("    DEC C");
         asm("    JR NZ,OuterLoop1");
 
-        asm("    LD A,%10"); // A' (Alt register)
+        asm("    LD C,%10");
         asm("OuterLoop2:");
-        asm("    EX AF,AF'"); // Switch A registers
         //        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
             asm("    LD IX,0"); // v = 0
@@ -453,19 +448,15 @@ start = gettime();
             asm("    ADD HL,DE");
             asm("    EX DE,HL");
                 // ang2Start += RVALUE;
-            asm("    EXX"); // Leave alt-register mode
             asm("    LD HL,1112");
             asm("    ADD.s HL,SP");
             asm("    LD.s SP,HL");
-            asm("    EXX"); // Enter alt-register mode
         }
-        asm("    EX AF,AF'"); // Switch A registers
-        asm("    DEC A");
+        asm("    DEC C");
         asm("    JR NZ,OuterLoop2");
 
-        asm("    LD A,%10"); // A' (Alt register)
+        asm("    LD C,%10");
         asm("OuterLoop3:");
-        asm("    EX AF,AF'"); // Switch A registers
         //        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
             asm("    LD IX,0"); // v = 0
@@ -479,19 +470,15 @@ start = gettime();
             asm("    ADD HL,DE");
             asm("    EX DE,HL");
                 // ang2Start += RVALUE;
-            asm("    EXX"); // Leave alt-register mode
             asm("    LD HL,1112");
             asm("    ADD.s HL,SP");
             asm("    LD.s SP,HL");
-            asm("    EXX"); // Enter alt-register mode
         }
-        asm("    EX AF,AF'"); // Switch A registers
-        asm("    DEC A");
+        asm("    DEC C");
         asm("    JR NZ,OuterLoop3");
 
-        asm("    LD A,%10"); // A' (Alt register)
+        asm("    LD C,%10");
         asm("OuterLoop4:");
-        asm("    EX AF,AF'"); // Switch A registers
         //        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
             asm("    LD IX,0"); // v = 0
@@ -505,14 +492,11 @@ start = gettime();
             asm("    ADD HL,DE");
             asm("    EX DE,HL");
                 // ang2Start += RVALUE;
-            asm("    EXX"); // Leave alt-register mode
             asm("    LD HL,1112");
             asm("    ADD.s HL,SP");
             asm("    LD.s SP,HL");
-            asm("    EXX"); // Enter alt-register mode
         }
-        asm("    EX AF,AF'"); // Switch A registers
-        asm("    DEC A");
+        asm("    DEC C");
         asm("    JR NZ,OuterLoop4");
 
         //rle = rleData;
