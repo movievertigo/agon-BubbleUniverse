@@ -45,18 +45,16 @@ static char clearBufferBuffer[6] = {23, 0, 0xA0, 0, 0, 2};
 }
 
 static char writeToBufferBuffer[8] = {23, 0, 0xA0, 0, 0, 0, 0, 0};
-#define writetobuffer(bufferId, data, length) \
-{ \
-    *(short*)(writeToBufferBuffer+3) = bufferId; \
-    *(short*)(writeToBufferBuffer+6) = length; \
-    vdp_sendblock(writeToBufferBuffer, 8); \
-    vdp_sendblock(data, length); \
-}
 #define preparetowritetobuffer(bufferId,length) \
 { \
     *(short*)(writeToBufferBuffer+3) = bufferId; \
     *(short*)(writeToBufferBuffer+6) = length; \
     vdp_sendblock(writeToBufferBuffer, 8); \
+}
+#define writetobuffer(bufferId, data, length) \
+{ \
+    preparetowritetobuffer(bufferId,length); \
+    vdp_sendblock(data, length); \
 }
 
 static char callBufferBuffer[6] = {23, 0, 0xA0, 0, 0, 1};
