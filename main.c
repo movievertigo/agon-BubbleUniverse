@@ -667,7 +667,76 @@ start = gettime();
                     asm("    INC A"); // Compare first pixel with 255
                     asm("    JR	Z,RLE_End"); // If the first pixel is 255 we're at the end already
                     asm("    INC E");
-                    asm("    JR RLE_Sextuple_PixelTwo");
+
+                    asm("RLE_Sextuple_PixelTwo:");
+                    asm("    LD A,H");
+                    asm("    OR A,A");
+                    asm("    LEA HL,IY+2");
+                    asm("    JR Z,RLE_Sextuple_PixelThree");
+                    asm("    CP A,D");
+                    asm("    JR NZ,RLE_ColourTriple");
+                    asm("    SET 1,E");
+                    asm("RLE_Sextuple_PixelThree:");
+                    asm("    LD A,(HL)");
+                    asm("    OR A,A");
+                    asm("    JR Z,RLE_Sextuple_PixelFour");
+                    asm("    CP A,D");
+                    asm("    JR NZ,RLE_ColourTriple");
+                    asm("    SET 2,E");
+                    asm("RLE_Sextuple_PixelFour:");
+                    asm("    INC HL");
+                    asm("    LD A,(HL)");
+                    asm("    OR A,A");
+                    asm("    JR Z,RLE_Sextuple_PixelFive");
+                    asm("    CP A,D");
+                    asm("    JR NZ,RLE_ColourTriple");
+                    asm("    SET 3,E");
+                    asm("RLE_Sextuple_PixelFive:");
+                    asm("    INC HL");
+                    asm("    LD A,(HL)");
+                    asm("    OR A,A");
+                    asm("    JR Z,RLE_Sextuple_PixelSix");
+                    asm("    CP A,D");
+                    asm("    JR NZ,RLE_ColourTriple");
+                    asm("    SET 4,E");
+                    asm("RLE_Sextuple_PixelSix:");
+                    asm("    INC HL");
+                    asm("    LD A,(HL)");
+                    asm("    OR A,A");
+                    asm("    JR Z,RLE_Sextuple_PixelSeven");
+                    asm("    CP A,D");
+                    asm("    JR NZ,RLE_ColourTriple");
+                    asm("    SET 5,E");
+                    asm("RLE_Sextuple_PixelSeven:");
+                    asm("    INC HL");
+                    asm("    LD A,(HL)");
+                    asm("    OR A,A");
+                    asm("    JR Z,RLE_Sextuple_PixelEight");
+                    asm("    CP A,D");
+                    asm("    JR NZ,RLE_ColourTriple");
+                    asm("    SET 6,E");
+                    asm("RLE_Sextuple_PixelEight:");
+                    asm("    INC HL");
+                    asm("    LD A,(HL)");
+                    asm("    OR A,A");
+                    asm("    JR Z,RLE_Sextuple_PixelsFinished");
+                    asm("    CP A,D");
+                    asm("    JR NZ,RLE_ColourTriple");
+                    asm("    SET 7,E");
+
+                    asm("RLE_Sextuple_PixelsFinished:");
+                    asm("    LD A,D");
+                    asm("    ADD A,%30-1");
+                    asm("    LD D,A");
+                    asm("    LD (IX),DE"); // The high (3rd) byte gets written but doesn't affect anything
+                    asm("    LEA IX,IX+%2");
+                    asm("    LD (IY),BC");
+                    asm("    LD (IY+2),BC");
+                    asm("    LD (IY+5),BC");
+                    asm("    LEA IY,IY+%8");
+                    asm("    JR RLE_Loop");
+
+                    // CheckPixelTwo and CheckPixelThree moved here so RLE_Sextuple can flow into RLE_Sextuple_PixelTwo without a jump
                     asm("RLE_Sextuple_CheckPixelTwo:");
                     asm("    LD A,H");
                     asm("    OR A,A");
@@ -686,83 +755,6 @@ start = gettime();
                     asm("    JR	NZ,RLE_Sextuple_PixelFour");
                     asm("    LD E,%1"); // If the third pixel is 255 we need a run of 2 black pixel
                     asm("    JR	RLE_LastRun");
-
-                    asm("RLE_Sextuple_PixelTwo:");
-                    asm("    LD A,H");
-                    asm("    OR A,A");
-                    asm("    LEA HL,IY+2");
-                    asm("    JR Z,RLE_Sextuple_PixelThree");
-                    asm("    CP A,D");
-                    asm("    JR NZ,RLE_ColourTriple");
-                    asm("    SET 1,E");
-
-                    asm("RLE_Sextuple_PixelThree:");
-                    asm("    LD A,(HL)");
-                    asm("    OR A,A");
-                    asm("    JR Z,RLE_Sextuple_PixelFour");
-                    asm("    CP A,D");
-                    asm("    JR NZ,RLE_ColourTriple");
-                    asm("    SET 2,E");
-
-                    asm("RLE_Sextuple_PixelFour:");
-                    asm("    INC HL");
-                    asm("    LD A,(HL)");
-                    asm("    OR A,A");
-                    asm("    JR Z,RLE_Sextuple_PixelFive");
-                    asm("    CP A,D");
-                    asm("    JR NZ,RLE_ColourTriple");
-                    asm("    SET 3,E");
-
-                    asm("RLE_Sextuple_PixelFive:");
-                    asm("    INC HL");
-                    asm("    LD A,(HL)");
-                    asm("    OR A,A");
-                    asm("    JR Z,RLE_Sextuple_PixelSix");
-                    asm("    CP A,D");
-                    asm("    JR NZ,RLE_ColourTriple");
-                    asm("    SET 4,E");
-
-                    asm("RLE_Sextuple_PixelSix:");
-                    asm("    INC HL");
-                    asm("    LD A,(HL)");
-                    asm("    OR A,A");
-                    asm("    JR Z,RLE_Sextuple_PixelSeven");
-                    asm("    CP A,D");
-                    asm("    JR NZ,RLE_ColourTriple");
-                    asm("    SET 5,E");
-
-                    asm("RLE_Sextuple_PixelSeven:");
-                    asm("    INC HL");
-                    asm("    LD A,(HL)");
-                    asm("    OR A,A");
-                    asm("    JR Z,RLE_Sextuple_PixelEight");
-                    asm("    CP A,D");
-                    asm("    JR NZ,RLE_ColourTriple");
-                    asm("    SET 6,E");
-
-                    asm("RLE_Sextuple_PixelEight:");
-                    asm("    INC HL");
-                    asm("    LD A,(HL)");
-                    asm("    OR A,A");
-                    asm("    JR Z,RLE_Sextuple_PixelsFinished");
-                    asm("    CP A,D");
-                    asm("    JR NZ,RLE_ColourTriple");
-                    asm("    SET 7,E");
-
-                    asm("RLE_Sextuple_PixelsFinished:");
-
-                    asm("    LD A,D");
-                    asm("    ADD A,%30-1");
-                    asm("    LD D,A");
-
-                    asm("    LD (IX),DE"); // The high (3rd) byte gets written but doesn't affect anything
-                    asm("    LEA IX,IX+%2");
-
-                    asm("    LD (IY),BC");
-                    asm("    LD (IY+2),BC");
-                    asm("    LD (IY+5),BC");
-                    asm("    LEA IY,IY+%8");
-                    asm("    JR RLE_Loop");
                 }
 
                 asm("RLE_ColourTriple:");
