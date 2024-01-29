@@ -557,8 +557,8 @@ start = gettime();
                 asm("    OR A,A");
                 asm("    JR NZ,RLE_CountBlack1End");
                 asm("    INC E");
-                asm("    LD A,E");
-                asm("    INC A"); // Instead of CP A,%FF
+                asm("    LD D,E");
+                asm("    INC D"); // Instead of CP A,%FF
                 asm("    JR Z,RLE_CountBlack1End");
                 asm("    INC IY");
                 asm("    LD A,(IY)");
@@ -571,14 +571,14 @@ start = gettime();
                 asm("    JR NZ,RLE_CountBlack1End");
                 asm("    INC E");
                 asm("    INC IY");
+                asm("    LD A,(IY)");
                 asm("RLE_CountBlack1End:");
 
                 {
                     // col = *ptr;
-                    asm("    LD D,(IY)");
+                    asm("    LD D,A");
 
                     // if (col != 255)
-                    asm("    LD A,D");
                     asm("    INC A");
                     asm("    JR	Z,RLE_LastRun");
 
