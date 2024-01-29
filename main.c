@@ -91,6 +91,23 @@ static char adjustBufferBuffer[12] = {23, 0, 0xA0, 0, 0, 5, 0, 0, 0, 0, 0, 0};
     vdp_sendblock(adjustBufferBuffer, 12); \
 }
 
+static char copyBufferBuffer[12] = {23, 0, 0xA0, 0, 0, 13, 0, 0, 0, 0, 0, 0};
+#define copybuffer(destinationBufferId, sourceBufferId) \
+{ \
+    *(short*)(copyBufferBuffer+3) = destinationBufferId; \
+    *(short*)(copyBufferBuffer+6) = sourceBufferId; \
+    *(short*)(copyBufferBuffer+8) = 65535; \
+    vdp_sendblock(copyBufferBuffer, 10); \
+}
+#define combine2buffers(destinationBufferId, sourceBufferId1, sourceBufferId2) \
+{ \
+    *(short*)(copyBufferBuffer+3) = destinationBufferId; \
+    *(short*)(copyBufferBuffer+6) = sourceBufferId1; \
+    *(short*)(copyBufferBuffer+8) = sourceBufferId2; \
+    *(short*)(copyBufferBuffer+10) = 65535; \
+    vdp_sendblock(copyBufferBuffer, 12); \
+}
+
 static char consolidateBufferBuffer[6] = {23, 0, 0xA0, 0, 0, 14};
 #define consolidatebuffer(bufferId) \
 { \
@@ -281,28 +298,24 @@ void createRLEbuffers()
     unsigned char* colours = coloursincblack+1;
 
     coloursincblack[0] = 0xc0;
-    colours[0x0] = makecolourfromindex(0x0);
-    colours[0x1] = makecolourfromindex(0x1);
-    colours[0x2] = makecolourfromindex(0x2);
-    colours[0x3] = makecolourfromindex(0x3);
-    colours[0x4] = makecolourfromindex(0x4);
-    colours[0x5] = makecolourfromindex(0x5);
-    colours[0x6] = makecolourfromindex(0x6);
-    colours[0x7] = makecolourfromindex(0x7);
-    colours[0x8] = makecolourfromindex(0x8);
-    colours[0x9] = makecolourfromindex(0x9);
-    colours[0xA] = makecolourfromindex(0xA);
-    colours[0xB] = makecolourfromindex(0xB);
-    colours[0xC] = makecolourfromindex(0xC);
-    colours[0xD] = makecolourfromindex(0xD);
-    colours[0xE] = makecolourfromindex(0xE);
-    colours[0xF] = makecolourfromindex(0xF);
+    colours[0x0] = makecolourfromindex(0x0); colours[0x1] = makecolourfromindex(0x1); colours[0x2] = makecolourfromindex(0x2); colours[0x3] = makecolourfromindex(0x3);
+    colours[0x4] = makecolourfromindex(0x4); colours[0x5] = makecolourfromindex(0x5); colours[0x6] = makecolourfromindex(0x6); colours[0x7] = makecolourfromindex(0x7);
+    colours[0x8] = makecolourfromindex(0x8); colours[0x9] = makecolourfromindex(0x9); colours[0xA] = makecolourfromindex(0xA); colours[0xB] = makecolourfromindex(0xB);
+    colours[0xC] = makecolourfromindex(0xC); colours[0xD] = makecolourfromindex(0xD); colours[0xE] = makecolourfromindex(0xE); colours[0xF] = makecolourfromindex(0xF);
 
     bufferId = 0;
     for (lenA = 1; lenA <= 256; ++lenA)
     {
-        createbuffer(bufferId, lenA);
-        adjustbuffermultiple(bufferId, 0x42, 0, lenA, 0xc0);
+        if (lenA == 1)
+        {
+            createbuffer(bufferId, lenA);
+            adjustbuffer(bufferId, 2, 0, 0xc0);
+        }
+        else
+        {
+            combine2buffers(bufferId, lenA-2, 0);
+            consolidatebuffer(bufferId);
+        }
         ++bufferId;
     }
 
@@ -311,8 +324,15 @@ void createRLEbuffers()
         colour = colours[colA];
         for (lenA = 1; lenA <= 256; ++lenA)
         {
-            createbuffer(bufferId, lenA + 1);
-            adjustbuffermultiple(bufferId, 0x42, 0, lenA, 0xc0);
+            if (lenA < 256)
+            {
+                copybuffer(bufferId, lenA); // Copy existing black buffer of length lenA+1
+            }
+            else
+            {
+                combine2buffers(bufferId, lenA-1, 0);
+                consolidatebuffer(bufferId);
+            }
             adjustbuffer(bufferId, 2, lenA, colour);
             ++bufferId;
         }
@@ -327,8 +347,7 @@ void createRLEbuffers()
         {
             for (lenB = 1+2; lenB <= 16+2; ++lenB)
             {
-                createbuffer(bufferId, lenA + 1 + lenB + 1);
-                adjustbuffermultiple(bufferId, 0x42, 0, lenA + 1 + lenB, 0xc0);
+                copybuffer(bufferId, lenA + 1 + lenB); // Copy existing black buffer of length lenA+1+lenB+1
                 adjustbuffer(bufferId, 2, lenA, colour);
                 adjustbuffer(bufferId, 2, lenA + 1 + lenB, colour);
                 ++bufferId;
