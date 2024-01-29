@@ -685,7 +685,7 @@ start = gettime();
                     asm("    INC A"); // Compare third pixel with 255
                     asm("    JR	NZ,RLE_Sextuple_PixelFour");
                     asm("    LD E,%1"); // If the third pixel is 255 we need a run of 2 black pixel
-                    asm("    JR	Z,RLE_LastRun");
+                    asm("    JR	RLE_LastRun");
 
                     asm("RLE_Sextuple_PixelTwo:");
                     asm("    LD A,H");
