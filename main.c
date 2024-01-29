@@ -551,22 +551,20 @@ start = gettime();
                 }
 
                 // while (*++ptr == 0 && ++len < 255) {}
-                asm("RLE_CountBlack1Loop:");
-                asm("    LD A,(IY)");
-                asm("    OR A,A");
+                asm("RLE_CountBlack1Unrolled:");
+                asm("    XOR A,A"); // LD A,0
+                asm("    OR A,(IY)");
                 asm("    JR NZ,RLE_CountBlack1End");
                 asm("    INC E");
                 asm("    LD D,E");
                 asm("    INC D"); // Instead of CP A,%FF
                 asm("    JR Z,RLE_CountBlack1End");
                 asm("    INC IY");
-                asm("    LD A,(IY)");
-                asm("    OR A,A");
+                asm("    OR A,(IY)");
                 asm("    JR NZ,RLE_CountBlack1End");
                 asm("    INC E");
                 asm("    INC IY");
-                asm("    LD A,(IY)");
-                asm("    OR A,A");
+                asm("    OR A,(IY)");
                 asm("    JR NZ,RLE_CountBlack1End");
                 asm("    INC E");
                 asm("    INC IY");
