@@ -414,8 +414,6 @@ void createRLEbuffers()
     }
 }
 
-volatile int ang1Start;
-volatile int ang2Start;
 volatile unsigned char* rle;
 volatile int t;
 
