@@ -127,6 +127,46 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 #define makecolour(outer, inner) (0xc0 + (outer) + (inner)*4 + (3-(((outer)+(inner))>>1)) * 16)
 #define makecolourfromindex(index) makecolour(index>>2, index&3)
 
+#define unrollcountblack3a(offset) \
+{ \
+    asm("    LD HL,(IY+"#offset")"); \
+    asm("    SBC HL,BC"); \
+    asm("    JR NZ,RLE_CountBlack3End"#offset); \
+}
+#define unrollcountblack3b(offset) \
+{ \
+    asm("    LD HL,(IY+"#offset"-126)"); \
+    asm("    SBC HL,BC"); \
+    asm("    JR NZ,RLE_CountBlack3End"#offset); \
+}
+#define unrollcountblack3c(offset) \
+{ \
+    asm("    LD HL,(IY+"#offset"-126-126)"); \
+    asm("    SBC HL,BC"); \
+    asm("    JR NZ,RLE_CountBlack3End"#offset); \
+}
+#define unrollcountblack3d(offset) \
+{ \
+    asm("RLE_CountBlack3End"#offset":"); \
+    asm("    LEA IY,IY+"#offset); \
+    asm("    ADD A,"#offset"-3"); \
+    asm("    JR RLE_CountBlack3End"); \
+}
+#define unrollcountblack3e(offset) \
+{ \
+    asm("RLE_CountBlack3End"#offset":"); \
+    asm("    LEA IY,IY+"#offset"-126"); \
+    asm("    ADD A,"#offset"-3"); \
+    asm("    JR RLE_CountBlack3End"); \
+}
+#define unrollcountblack3f(offset) \
+{ \
+    asm("RLE_CountBlack3End"#offset":"); \
+    asm("    LEA IY,IY+"#offset"-126-126"); \
+    asm("    ADD A,"#offset"-3"); \
+    asm("    JR RLE_CountBlack3End"); \
+}
+
 #define innerloop(colIndex) \
 { \
     asm("    LD A,%"#colIndex); \
@@ -529,20 +569,45 @@ start = gettime();
                 {
                     asm("    INC A");
 
-                    // do
-                    {
-                        asm("RLE_CountBlack3Loop:");
-                        // ptr += 3;
-                        asm("    ADD IY,DE");
-                    }
-                    // while (*(unsigned int*)ptr == 0 && len < 255);
-                    asm("    LD HL,(IY)");
-                    asm("    SBC HL,BC"); // BC Was set to zero before we started
-                    asm("    JR NZ,RLE_CountBlack3End");
-                    // len += 3;
-                    asm("    ADD A,E");
-                    asm("    JR NZ,RLE_CountBlack3Loop");
-                    asm("    SUB A,E");
+                    unrollcountblack3a(  3); unrollcountblack3a(  6); unrollcountblack3a(  9); unrollcountblack3a( 12); unrollcountblack3a( 15);
+                    unrollcountblack3a( 18); unrollcountblack3a( 21); unrollcountblack3a( 24); unrollcountblack3a( 27); unrollcountblack3a( 30);
+                    unrollcountblack3a( 33); unrollcountblack3a( 36); unrollcountblack3a( 39); unrollcountblack3a( 42); unrollcountblack3a( 45);
+                    unrollcountblack3a( 48); unrollcountblack3a( 51); unrollcountblack3a( 54); unrollcountblack3a( 57); unrollcountblack3a( 60);
+                    unrollcountblack3a( 63); unrollcountblack3a( 66); unrollcountblack3a( 69); unrollcountblack3a( 72); unrollcountblack3a( 75);
+                    unrollcountblack3a( 78); unrollcountblack3a( 81); unrollcountblack3a( 84); unrollcountblack3a( 87); unrollcountblack3a( 90);
+                    unrollcountblack3a( 93); unrollcountblack3a( 96); unrollcountblack3a( 99); unrollcountblack3a(102); unrollcountblack3a(105);
+                    unrollcountblack3a(108); unrollcountblack3a(111); unrollcountblack3a(114); unrollcountblack3a(117); unrollcountblack3a(120);
+                    unrollcountblack3a(123); unrollcountblack3a(126);
+                                           asm("    LEA IY, IY+126"); unrollcountblack3b(129); unrollcountblack3b(132); unrollcountblack3b(135);
+                    unrollcountblack3b(138); unrollcountblack3b(141); unrollcountblack3b(144); unrollcountblack3b(147); unrollcountblack3b(150);
+                    unrollcountblack3b(153); unrollcountblack3b(156); unrollcountblack3b(159); unrollcountblack3b(162); unrollcountblack3b(165);
+                    unrollcountblack3b(168); unrollcountblack3b(171); unrollcountblack3b(174); unrollcountblack3b(177); unrollcountblack3b(180);
+                    unrollcountblack3b(183); unrollcountblack3b(186); unrollcountblack3b(189); unrollcountblack3b(192); unrollcountblack3b(195);
+                    unrollcountblack3b(198); unrollcountblack3b(201); unrollcountblack3b(204); unrollcountblack3b(207); unrollcountblack3b(210);
+                    unrollcountblack3b(213); unrollcountblack3b(216); unrollcountblack3b(219); unrollcountblack3b(222); unrollcountblack3b(225);
+                    unrollcountblack3b(228); unrollcountblack3b(231); unrollcountblack3b(234); unrollcountblack3b(237); unrollcountblack3b(240);
+                    unrollcountblack3b(243); unrollcountblack3b(246); unrollcountblack3b(249); unrollcountblack3b(252);
+                                                                                             asm("    LEA IY, IY+126"); unrollcountblack3c(255);
+                    asm("    ADD A,255-3");
+                    asm("    LEA IY,IY+255-126-126");
+                    asm("    JR RLE_CountBlack3End");
+                    unrollcountblack3d(  3); unrollcountblack3d(  6); unrollcountblack3d(  9); unrollcountblack3d( 12); unrollcountblack3d( 15);
+                    unrollcountblack3d( 18); unrollcountblack3d( 21); unrollcountblack3d( 24); unrollcountblack3d( 27); unrollcountblack3d( 30);
+                    unrollcountblack3d( 33); unrollcountblack3d( 36); unrollcountblack3d( 39); unrollcountblack3d( 42); unrollcountblack3d( 45);
+                    unrollcountblack3d( 48); unrollcountblack3d( 51); unrollcountblack3d( 54); unrollcountblack3d( 57); unrollcountblack3d( 60);
+                    unrollcountblack3d( 63); unrollcountblack3d( 66); unrollcountblack3d( 69); unrollcountblack3d( 72); unrollcountblack3d( 75);
+                    unrollcountblack3d( 78); unrollcountblack3d( 81); unrollcountblack3d( 84); unrollcountblack3d( 87); unrollcountblack3d( 90);
+                    unrollcountblack3d( 93); unrollcountblack3d( 96); unrollcountblack3d( 99); unrollcountblack3d(102); unrollcountblack3d(105);
+                    unrollcountblack3d(108); unrollcountblack3d(111); unrollcountblack3d(114); unrollcountblack3d(117); unrollcountblack3d(120);
+                    unrollcountblack3d(123); unrollcountblack3d(126); unrollcountblack3e(129); unrollcountblack3e(132); unrollcountblack3e(135);
+                    unrollcountblack3e(138); unrollcountblack3e(141); unrollcountblack3e(144); unrollcountblack3e(147); unrollcountblack3e(150);
+                    unrollcountblack3e(153); unrollcountblack3e(156); unrollcountblack3e(159); unrollcountblack3e(162); unrollcountblack3e(165);
+                    unrollcountblack3e(168); unrollcountblack3e(171); unrollcountblack3e(174); unrollcountblack3e(177); unrollcountblack3e(180);
+                    unrollcountblack3e(183); unrollcountblack3e(186); unrollcountblack3e(189); unrollcountblack3e(192); unrollcountblack3e(195);
+                    unrollcountblack3e(198); unrollcountblack3e(201); unrollcountblack3e(204); unrollcountblack3e(207); unrollcountblack3e(210);
+                    unrollcountblack3e(213); unrollcountblack3e(216); unrollcountblack3e(219); unrollcountblack3e(222); unrollcountblack3e(225);
+                    unrollcountblack3e(228); unrollcountblack3e(231); unrollcountblack3e(234); unrollcountblack3e(237); unrollcountblack3e(240);
+                    unrollcountblack3e(243); unrollcountblack3e(246); unrollcountblack3e(249); unrollcountblack3e(252); unrollcountblack3f(255);
                     asm("RLE_CountBlack3End:");
 
                     // --len; (INC at start then SUB 3 above then INC below equals -1)
