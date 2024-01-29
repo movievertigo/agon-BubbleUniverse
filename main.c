@@ -600,13 +600,12 @@ start = gettime();
                             asm("    CP A,16+2");
                             asm("    JR NC,RLE_NoConsolidation");
 
-                            asm("    SUB A,%2");
                             asm("    ADD A,A");
                             asm("    ADD A,A");
                             asm("    ADD A,A");
                             asm("    ADD A,A");
                             asm("    ADD A,E");
-                            asm("    SUB A,%2");
+                            asm("    SUB A,%22");
                             asm("    LD E,A");
                             asm("    LD A,D");
                             asm("    ADD A,%20-1");
