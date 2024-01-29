@@ -524,7 +524,7 @@ start = gettime();
                 //len = 0;
                 asm("    LD A,B"); // BC Was set to zero before we started
 
-                asm("    LD D,%3");
+                asm("    LD DE,3");
 
                 {
                     asm("    INC A");
@@ -532,18 +532,17 @@ start = gettime();
                     // do
                     {
                         asm("RLE_CountBlack3Loop:");
-
                         // ptr += 3;
-                        asm("    LEA IY,IY+%3");
+                        asm("    ADD IY,DE");
                     }
                     // while (*(unsigned int*)ptr == 0 && len < 255);
                     asm("    LD HL,(IY)");
                     asm("    SBC HL,BC"); // BC Was set to zero before we started
                     asm("    JR NZ,RLE_CountBlack3End");
                     // len += 3;
-                    asm("    ADD A,D");
+                    asm("    ADD A,E");
                     asm("    JR NZ,RLE_CountBlack3Loop");
-                    asm("    SUB A,D");
+                    asm("    SUB A,E");
                     asm("RLE_CountBlack3End:");
 
                     // --len; (INC at start then SUB 3 above then INC below equals -1)
