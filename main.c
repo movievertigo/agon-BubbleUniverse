@@ -171,50 +171,42 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
     asm("    JR RLE_CountBlack3End"); \
 }
 
-#define innerloop(colIndex) \
+#define u() \
 { \
-    asm("    LD A,%"#colIndex); \
+    /* ang1 = ang1Start + v; */ \
+    asm("    ADD.s IY,DE"); /* v from IY, ang1Start from DE' */ \
+    asm("    EXX"); /* Leave alt-register mode */ \
 \
-    asm("    LD B,%40"); \
-    asm("InnerLoop"#colIndex":"); \
+    /* *(((char*)&ang1)+2) = (char)costable>>16; */ \
+    asm("    ADD IY,DE"); \
 \
-    /* for (j = ITERATIONS/4 - 1; j >= 0; --j) */ \
-    { \
-        /* ang1 = ang1Start + v; */ \
-        asm("    ADD.s IY,DE"); /* v from IY, ang1Start from DE' */ \
-        asm("    EXX"); /* Leave alt-register mode */ \
+    /* ang2 = ang2Start + u; */ \
+    asm("    LEA HL,IX+0"); /* u from IX */ \
+    asm("    ADD.s HL,SP"); /* ang2Start from SPS */ \
 \
-        /* *(((char*)&ang1)+2) = (char)costable>>16; */ \
-        asm("    ADD IY,DE"); \
+    /* *(((char*)&ang2)+2) = (char)costable>>16; */ \
+    asm("    ADD HL,DE"); \
 \
-        /* ang2 = ang2Start + u; */ \
-        asm("    LEA HL,IX+0"); /* u from IX */ \
-        asm("    ADD.s HL,SP"); /* ang2Start from SPS */ \
+    /* u = *(int*)(ang1+COSTABLEENTRIES) + *(int*)(ang2+COSTABLEENTRIES); */ \
+    asm("    LD BC,(IY)"); \
+    asm("    LD IX,(HL)"); \
+    asm("    ADD IX,BC"); \
 \
-        /* *(((char*)&ang2)+2) = (char)costable>>16; */ \
-        asm("    ADD HL,DE"); \
+    /* v = *(int*)ang1 + *(int*)ang2; */ \
+    asm("    ADD IY,DE"); \
+    asm("    ADD HL,DE"); \
+    asm("    LD BC,(IY)"); \
+    asm("    LD IY,(HL)"); \
+    asm("    ADD IY,BC"); \
 \
-        /* u = *(int*)(ang1+COSTABLEENTRIES) + *(int*)(ang2+COSTABLEENTRIES); */ \
-        asm("    LD BC,(IY)"); \
-        asm("    LD IX,(HL)"); \
-        asm("    ADD IX,BC"); \
+    /* *(unsigned char*)(scaleYTable[v] + scaleXTable[u]) = colIndex; */ \
+    asm("    LD BC,(IY+1)"); \
+    asm("    LD L,(IX)"); \
+    asm("    LD H,E"); /* Assuming E is 0 as it's an address constant (quicker than LD H,%0) */ \
+    asm("    ADD HL,BC"); /* Top byte of HL isn't clear but we compensate with -costable in the scale table */ \
+    asm("    LD (HL),A"); \
 \
-        /* v = *(int*)ang1 + *(int*)ang2; */ \
-        asm("    ADD IY,DE"); \
-        asm("    ADD HL,DE"); \
-        asm("    LD BC,(IY)"); \
-        asm("    LD IY,(HL)"); \
-        asm("    ADD IY,BC"); \
-\
-        /* *(unsigned char*)(scaleYTable[v] + scaleXTable[u]) = colIndex; */ \
-        asm("    LD BC,(IY+1)"); \
-        asm("    LD L,(IX)"); \
-        asm("    LD H,E"); /* Assuming E is 0 as it's an address constant (quicker than LD H,%0) */ \
-        asm("    ADD HL,BC"); /* Top byte of HL isn't clear but we compensate with -costable in the scale table */ \
-        asm("    LD (HL),A"); \
-    } \
     asm("    EXX"); /* Enter alt-register mode */ \
-    asm("    DJNZ InnerLoop"#colIndex); \
 }
 
 #define sintable ((long*)0x50000) // 0x50000 - 0x5FFFF
@@ -455,16 +447,32 @@ start = gettime();
         asm("    LD	DE,50000h");
         asm("    EXX"); // Enter alt-register mode
 
-        asm("    LD C,%10");
+        asm("    LD B,%10");
         asm("OuterLoop1:");
         // for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
             asm("    LD IX,0"); // v = 0
-            asm("    LD IY,0"); // u = 0
-            innerloop(1);
-            innerloop(2);
-            innerloop(3);
-            innerloop(4);
+            asm("    LEA IY,IX+0"); // u = 0
+            asm("    LD A,%1");
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            asm("    LD A,%2");
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            asm("    LD A,%3");
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            asm("    LD A,%4");
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
            // ang1Start += SCALEVALUE;
             asm("    LD HL,41720");
             asm("    ADD HL,DE");
@@ -474,20 +482,35 @@ start = gettime();
             asm("    ADD.s HL,SP");
             asm("    LD.s SP,HL");
         }
-        asm("    DEC C");
-        asm("    JR NZ,OuterLoop1");
+        asm("    DJNZ OuterLoop1");
 
-        asm("    LD C,%10");
+        asm("    LD B,%10");
         asm("OuterLoop2:");
         //        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
             asm("    LD IX,0"); // v = 0
-            asm("    LD IY,0"); // u = 0
-            innerloop(5);
-            innerloop(6);
-            innerloop(7);
-            innerloop(8);
-            // ang1Start += SCALEVALUE;
+            asm("    LEA IY,IX+0"); // u = 0
+            asm("    LD A,%5");
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            asm("    LD A,%6");
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            asm("    LD A,%7");
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            asm("    LD A,%8");
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+           // ang1Start += SCALEVALUE;
             asm("    LD HL,41720");
             asm("    ADD HL,DE");
             asm("    EX DE,HL");
@@ -496,19 +519,34 @@ start = gettime();
             asm("    ADD.s HL,SP");
             asm("    LD.s SP,HL");
         }
-        asm("    DEC C");
-        asm("    JR NZ,OuterLoop2");
+        asm("    DJNZ OuterLoop2");
 
-        asm("    LD C,%10");
+        asm("    LD B,%10");
         asm("OuterLoop3:");
         //        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
             asm("    LD IX,0"); // v = 0
-            asm("    LD IY,0"); // u = 0
-            innerloop(9);
-            innerloop(A);
-            innerloop(B);
-            innerloop(C);
+            asm("    LEA IY,IX+0"); // u = 0
+            asm("    LD A,%9");
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            asm("    LD A,%A");
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+           asm("    LD A,%B");
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            asm("    LD A,%C");
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
             // ang1Start += SCALEVALUE;
             asm("    LD HL,41720");
             asm("    ADD HL,DE");
@@ -518,19 +556,34 @@ start = gettime();
             asm("    ADD.s HL,SP");
             asm("    LD.s SP,HL");
         }
-        asm("    DEC C");
-        asm("    JR NZ,OuterLoop3");
+        asm("    DJNZ OuterLoop3");
 
-        asm("    LD C,%10");
+        asm("    LD B,%10");
         asm("OuterLoop4:");
         //        for (i = CURVECOUNT/CURVESTEP/4-1; i >= 0; --i)
         {
             asm("    LD IX,0"); // v = 0
-            asm("    LD IY,0"); // u = 0
-            innerloop(D);
-            innerloop(E);
-            innerloop(F);
-            innerloop(10);
+            asm("    LEA IY,IX+0"); // u = 0
+            asm("    LD A,%D");
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            asm("    LD A,%E");
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            asm("    LD A,%F");
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            asm("    LD A,%10");
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
+            u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();u();
             // ang1Start += SCALEVALUE;
             asm("    LD HL,41720");
             asm("    ADD HL,DE");
@@ -540,8 +593,7 @@ start = gettime();
             asm("    ADD.s HL,SP");
             asm("    LD.s SP,HL");
         }
-        asm("    DEC C");
-        asm("    JR NZ,OuterLoop4");
+        asm("    DJNZ OuterLoop4");
 
         //rle = rleData;
         asm("    LD IX,90006h");
