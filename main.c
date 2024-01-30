@@ -3,8 +3,10 @@
 #include "agonmos.h"
 #include "agonlib.h"
 
-#define WIDTH 320
-#define HEIGHT 240
+#define SCREENWIDTH 320
+#define SCREENHEIGHT 240
+
+#define HEIGHT 238
 
 #define BITMAPBUFFER 65534
 #define BITMAPFORMAT 1
@@ -255,9 +257,9 @@ void makecommandbuffer()
 {
     preparetowritetobuffer(COMMANDBUFFER, 6+8+7)
     {
-        consolidatebuffer(BITMAPBUFFER);                        // Length 6
-        createbitmapfrombuffer(HEIGHT, HEIGHT, BITMAPFORMAT);   // Length 8
-        drawbitmap((WIDTH-HEIGHT)/2, 0);                        // Length 7
+        consolidatebuffer(BITMAPBUFFER);                             // Length 6
+        createbitmapfrombuffer(HEIGHT, HEIGHT, BITMAPFORMAT);        // Length 8
+        drawbitmap((SCREENWIDTH-HEIGHT)/2, (SCREENHEIGHT-HEIGHT)/2); // Length 7
     }
 
     consolidatebuffer(COMMANDBUFFER);
