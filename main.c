@@ -179,22 +179,22 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
     asm("    ADD.s IY,DE"); /* v from IY, ang1Start from DE' */ \
     asm("    EXX"); /* Leave alt-register mode */ \
 \
-    /* *(((char*)&ang1)+2) = (char)costable>>16; */ \
+    /* *(((char*)&ang1)+2) = (char)sintable>>16; */ \
     asm("    ADD IY,DE"); \
 \
     /* ang2 = ang2Start + u; */ \
     asm("    LEA HL,IX+0"); /* u from IX */ \
     asm("    ADD.s HL,SP"); /* ang2Start from SPS */ \
 \
-    /* *(((char*)&ang2)+2) = (char)costable>>16; */ \
+    /* *(((char*)&ang2)+2) = (char)sintable>>16; */ \
     asm("    ADD HL,DE"); \
 \
-    /* u = *(int*)(ang1+COSTABLEENTRIES) + *(int*)(ang2+COSTABLEENTRIES); */ \
+    /* u = *(int*)ang1 + *(int*)ang2; */ \
     asm("    LD BC,(IY)"); \
     asm("    LD IX,(HL)"); \
     asm("    ADD IX,BC"); \
 \
-    /* v = *(int*)ang1 + *(int*)ang2; */ \
+    /* v = *(int*)(ang1+costable) + *(int*)(ang2+costable); */ \
     asm("    ADD IY,DE"); \
     asm("    ADD HL,DE"); \
     asm("    LD BC,(IY)"); \
@@ -214,7 +214,6 @@ static char drawBitmapBuffer[7] = {23, 27, 3, 0, 0, 0, 0};
 #define sintable ((long*)0x50000) // 0x50000 - 0x5FFFF
 
 #define bitmap ((char*)0x60000) // 0x60000 - 0x6FFFF
-#define bitmapCentre ((char*)(bitmap+(HEIGHT+1)*HEIGHT/2))
 #define bitmapEnd ((char*)(bitmap+HEIGHT*HEIGHT))
 
 #define scaleTable ((unsigned char*)0x80000) // 0x78000 - 0x87FFF
