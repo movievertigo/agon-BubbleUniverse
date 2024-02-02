@@ -264,13 +264,30 @@ void makecommandbuffer()
     consolidatebuffer(COMMANDBUFFER);
 }
 
+char checkCopyBlocksByReferenceWorks()
+{
+    char tryCommand[] = {30, 23, 0, 0xA0, 255, 255, 0x19, 17, 0, 255, 255, 17, 15, 10, 23, 0, 0x82};
+    char* sysvars = mos_sysvars();
+    char result;
+
+    sysvars[8] = 0;
+    vdp_sendblock(tryCommand, 17);
+    while (!sysvars[8]) {} // Wait until the cursor Y position is reported as 1 (due to the VDU 10) 
+
+     // If the command exists it will have swallowed the 255,255 and the cursor X will still be 0
+    result = sysvars[7] == 0;
+
+    vdp_sendchar(30); // Reset the cursor
+    return result;
+}
+
 void prependandappend()
 {
     rleHeader[0] = 23;
     rleHeader[1] = 0;
     rleHeader[2] = 0xA0;
     *(short*)(rleHeader+3) = BITMAPBUFFER;
-    rleHeader[5] = 0x19;
+    rleHeader[5] = checkCopyBlocksByReferenceWorks() ? 0x19 : 0x0D;
 
     bitmapEnd[0] = 255;
 }
@@ -282,6 +299,63 @@ void clearbitmap()
     {
         *ptr++ = 0;
     }
+}
+
+static unsigned long introPosition;
+static unsigned int introPercentage;
+static char* introText = "\n\n\n\n\n\n\n\n            Bubble Universe\r\n\n\n\n\n\n\n\n\
+  Agon Light version by Movie Vertigo\r\n\n\
+        twitter.com/movievertigo\r\n\
+        youtube.com/movievertigo";
+static unsigned char rgbtoindex[64] = {
+     0, 25,  1,  9, 17, 29, 42, 54,  2, 32,  3, 58, 10, 36, 48, 11,
+    16, 26, 40, 52, 18,  8, 43, 55, 21, 33, 46, 59, 23, 37, 49, 62,
+     4, 27,  5, 53, 19, 30, 44, 56,  6, 34,  7, 60, 24, 38, 50, 63,
+    12, 28, 41, 13, 20, 31, 45, 57, 22, 35, 47, 61, 14, 39, 51, 15
+};
+
+static char introViewport[] = {28, 18, 14, 22, 12};
+void initIntro()
+{
+    int charIndex, stage = 3, printing = 0;
+    char r,g,b;
+    introPosition = 0;
+    introPercentage = -1;
+
+    for (charIndex = 0; charIndex < strlen(introText); ++charIndex)
+    {
+        if (printing && introText[charIndex] < 32)
+        {
+            --stage;
+        }
+        printing = introText[charIndex] >= 32;
+        if (printing)
+        {
+            r = stage; g = (charIndex%7)-3; g = g < 0 ? -g : g; b = 3 - (r+g)/2;
+            colour(rgbtoindex[(b<<4)+(g<<2)+r]);
+        }
+        vdp_sendchar(introText[charIndex]);
+    }
+    vdp_sendblock(introViewport, 5);
+}
+
+void updateIntro(int weight)
+{
+    int newPercentage = (introPosition * 100) / 10223536L;
+    introPosition += weight;
+
+    if (newPercentage != introPercentage)
+    {
+        introPercentage = newPercentage;
+        printnum(introPercentage); vdp_sendstring("%\r");
+    }
+}
+
+void endIntro()
+{
+    vdp_sendchar(26);
+    colour(15);
+    cls();
 }
 
 void createRLEbuffers()
@@ -296,13 +370,15 @@ void createRLEbuffers()
     colours[0x8] = makecolourfromindex(0x8); colours[0x9] = makecolourfromindex(0x9); colours[0xA] = makecolourfromindex(0xA); colours[0xB] = makecolourfromindex(0xB);
     colours[0xC] = makecolourfromindex(0xC); colours[0xD] = makecolourfromindex(0xD); colours[0xE] = makecolourfromindex(0xE); colours[0xF] = makecolourfromindex(0xF);
 
+    initIntro();
+
     bufferId = 0;
     for (lenA = 1; lenA <= 256; ++lenA)
     {
         if (lenA == 1)
         {
-            createbuffer(bufferId, lenA);
-            adjustbuffer(bufferId, 2, 0, 0xc0);
+            sequence[0] = 0xc0;
+            writetobuffer(bufferId, sequence, lenA);
         }
         else
         {
@@ -310,6 +386,7 @@ void createRLEbuffers()
             consolidatebuffer(bufferId);
         }
         ++bufferId;
+        updateIntro(2*256*256/256);
     }
 
     for (colA = 0; colA < 16; ++colA)
@@ -328,6 +405,7 @@ void createRLEbuffers()
             }
             adjustbuffer(bufferId, 2, lenA, colour);
             ++bufferId;
+            updateIntro(43*256/16);
         }
     }
 
@@ -345,6 +423,7 @@ void createRLEbuffers()
                 adjustbuffer(bufferId, 2, lenA + 1 + lenB, colour);
                 ++bufferId;
             }
+            updateIntro(58*16*256/16);
         }
     }
 
@@ -384,6 +463,7 @@ void createRLEbuffers()
                         }
                     }
                 }
+                updateIntro(24*64*256/16);
             }
         }
     }
@@ -402,9 +482,12 @@ void createRLEbuffers()
                 ++bufferId;
             }
             bufferId += (1<<5) - 17;
+            updateIntro(29*256*256/17/17);
         }
         bufferId += (1<<10) - (17<<5);
     }
+
+    endIntro();
 }
 
 volatile unsigned char* rle;
@@ -423,13 +506,12 @@ int main(void)
     prependandappend();
     makecommandbuffer();
     createRLEbuffers();
-printnum(gettime()-start); vdp_sendstring("\n\r");
-
+//printnum(gettime()-start); vdp_sendstring("\n\r");
     t = 0; // 128000 + 40*4*298;
 
 start = gettime();
 
-    while (getlastkey() != 125 && t < 400*16)
+    while (getlastkey() != 125 /* && t < 400*16*/)
     {
 //        start = gettime();
 
@@ -908,10 +990,10 @@ start = gettime();
 
 //        printnum(gettime()-start); vdp_sendstring("\r");
     }
-printnum(gettime()-start); vdp_sendstring("\n\r");
+// printnum(gettime()-start); vdp_sendstring("\n\r");
 
-//    cls();
     clearallbuffers();
+    cls();
     cursor(1);
     return 0;
 }
