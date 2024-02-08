@@ -12,6 +12,7 @@
 #define BITMAPFORMAT 1
 
 #define COMMANDBUFFER 65533
+#define COPYBUFFER 65532
 
 #define CURVECOUNT 256
 #define CURVESTEP 4
@@ -304,7 +305,7 @@ void clearbitmap()
 static unsigned long introPosition;
 static unsigned int introPercentage;
 static char* introText = "\n\n\n\n\n\n\n\n            Bubble Universe\r\n\n\n\n\n\n\n\n\
-  Agon Light version by Movie Vertigo\r\n\n\
+   Agon Light v1.01 by Movie Vertigo\r\n\n\
         twitter.com/movievertigo\r\n\
         youtube.com/movievertigo";
 static unsigned char rgbtoindex[64] = {
@@ -983,7 +984,9 @@ start = gettime();
 
         *(unsigned short*)rle = 0xFFFF;
 
-        vdp_sendblock(rleHeader, rle+2 - rleHeader);
+        clearbuffer(COPYBUFFER);
+        writetobuffer(COPYBUFFER, rleHeader, rle+2 - rleHeader);
+        callbuffer(COPYBUFFER);
         callbuffer(COMMANDBUFFER);
 
         t += 40*4; // ENSURE THIS IS A MULTIPLE OF 4
